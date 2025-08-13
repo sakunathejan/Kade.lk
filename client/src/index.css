@@ -1,0 +1,219 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+
+/* Theming via CSS variables for smooth transitions */
+:root {
+  --color-primary: #4CAF50;
+  --color-secondary: #FFC107;
+  --color-accent: #2196F3;
+  --color-bg: #FAFAFA; /* neutral light */
+  --color-surface: #FFFFFF;
+  --color-text: #212121;
+  --color-text-muted: #5f6368;
+  --color-border: rgba(0,0,0,0.12);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 6px 16px rgba(0,0,0,0.10);
+  --transition-theme: color .3s ease-in-out, background-color .3s ease-in-out, border-color .3s ease-in-out, box-shadow .3s ease-in-out, fill .3s ease-in-out;
+  /* 3D Design System */
+  --depth-1: 0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.1);
+  --depth-2: 0 8px 25px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.08);
+  --depth-3: 0 20px 60px rgba(0,0,0,0.15), 0 8px 25px rgba(0,0,0,0.1);
+  --depth-4: 0 40px 120px rgba(0,0,0,0.2), 0 15px 50px rgba(0,0,0,0.15);
+  --border-radius: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 32px;
+}
+
+.dark {
+  --color-bg: #121212; /* neutral dark */
+  --color-surface: #212121; /* dark surface */
+  --color-text: #E0E0E0;
+  --color-text-muted: #bdbdbd;
+  --color-border: rgba(255,255,255,0.12);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 10px 24px rgba(0,0,0,0.55);
+  /* 3D Dark Mode */
+  --depth-1: 0 4px 12px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.4);
+  --depth-2: 0 12px 35px rgba(0,0,0,0.7), 0 6px 20px rgba(0,0,0,0.5);
+  --depth-3: 0 25px 80px rgba(0,0,0,0.8), 0 12px 40px rgba(0,0,0,0.6);
+  --depth-4: 0 50px 150px rgba(0,0,0,0.9), 0 20px 70px rgba(0,0,0,0.7);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: var(--transition-theme);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  perspective: 1000px;
+}
+
+/* Generic surface and card helpers driven by CSS variables */
+.surface {
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: var(--transition-theme);
+}
+
+/* 3D Card System */
+.card {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--border-radius);
+  box-shadow: var(--depth-1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: translateZ(0);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-8px) translateZ(20px);
+  box-shadow: var(--depth-3);
+}
+.card:hover::before { opacity: 1; }
+
+.card--elevated {
+  box-shadow: var(--depth-2);
+  transform: translateY(-4px) translateZ(10px);
+}
+
+.card--hero {
+  box-shadow: var(--depth-4);
+  transform: translateZ(30px);
+}
+
+.text-muted { color: var(--color-text-muted); transition: var(--transition-theme); }
+.border-thematic { border-color: var(--color-border); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .75rem 1.5rem;
+  border-radius: var(--border-radius);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+.btn:hover::before { left: 100%; }
+.btn:active { transform: translateY(2px) scale(0.98); }
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { 
+  transform: translateY(-2px) translateZ(10px);
+  box-shadow: var(--depth-2);
+}
+.btn-accent { background: var(--color-accent); color: #fff; }
+.btn-outline { 
+  background: transparent; 
+  color: var(--color-text); 
+  border: 2px solid var(--color-border);
+}
+.btn-outline:hover { 
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: translateY(-2px) translateZ(10px);
+}
+
+/* Inputs */
+.input {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 2px solid transparent;
+  border-radius: var(--border-radius);
+  padding: .75rem 1rem;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--depth-1);
+  transform: translateZ(0);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  transform: translateY(-2px) translateZ(10px);
+  box-shadow: var(--depth-2);
+}
+.input--sm { padding: .2rem .6rem; font-size: .85rem; border-radius: .45rem; }
+
+/* Pills */
+.pill {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  padding: .25rem .75rem;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--depth-1);
+  transform: translateZ(0);
+  cursor: pointer;
+}
+.pill:hover {
+  transform: translateY(-2px) translateZ(5px);
+  box-shadow: var(--depth-2);
+}
+.pill--active { background: var(--color-primary); color: #fff; border-color: transparent; }
+.pill--sm { padding: .1rem .6rem; font-size: .8rem; }
+
+/* 3D Container */
+.container-3d {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* Floating Animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) translateZ(0); }
+  50% { transform: translateY(-10px) translateZ(20px); }
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: var(--depth-2);
+}
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Utility: shimmer skeleton */
+.skeleton { background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+
