@@ -3,6 +3,7 @@ import { useAppContext, User } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
 import ProductManagement from '../components/admin/ProductManagement';
+import { api } from '../services/http';
 
 const SuperAdminDashboard: React.FC = () => {
   const { state, getUsers, createUser, activateUser, deactivateUser, hardDeleteUser } = useAppContext();
@@ -111,51 +112,40 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  const handlePasswordReset = async (user: User) => {
-    if (window.confirm(`Are you sure you want to reset the password for ${user.name}?`)) {
+  const handleResetPassword = async (user: User) => {
+    if (!window.confirm(`Are you sure you want to reset the password for ${user.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await api.post(`/users/${user.id}/reset-password`);
+      const tempPassword = response.data.tempPassword;
+      
+      // Send password reset email
       try {
-        setErrors([]);
-        setSuccess('');
-
-        // Call the password reset endpoint
-        const response = await fetch(`/api/users/${user.id}/reset-password`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            newPassword: '' // Empty to generate random password
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to reset password');
-        }
-
-        const result = await response.json();
-        const newPassword = result.data?.tempPassword || 'Password generated';
-
-        // Send password reset email
         const emailResult = await sendPasswordResetEmail({
           to_email: user.email,
           to_name: user.name,
           user_id: user.userId,
-          temp_password: newPassword,
+          temp_password: tempPassword,
           role: user.role
         });
 
         if (emailResult.success) {
-          setSuccess(`Password reset successfully! Reset email sent to ${user.email}`);
+          setSuccess(`Password reset successfully! New temporary password sent to ${user.email}`);
         } else {
           setSuccess(`Password reset successfully! But email failed to send. Check console for details.`);
         }
-
-        loadUsers(); // Refresh user list
-      } catch (error: any) {
-        setErrors([error.message || 'Failed to reset password']);
+      } catch (emailError) {
+        console.error('Email error:', emailError);
+        setSuccess(`Password reset successfully! But email failed to send. Check console for details.`);
       }
+
+      // Reload users to refresh the list
+      loadUsers();
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setErrors(['Failed to reset password. Please try again.']);
     }
   };
 
@@ -449,7 +439,7 @@ const SuperAdminDashboard: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => handlePasswordReset(user)}
+                            onClick={() => handleResetPassword(user)}
                             className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
                             title="Reset Password"
                           >

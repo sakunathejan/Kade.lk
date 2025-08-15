@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+import { api } from '../services/http';
 
 interface Product {
   _id: string;
@@ -29,19 +30,8 @@ const CategoryProducts: React.FC = () => {
   const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const url = `/api/products?category=${encodeURIComponent(category!)}`;
-      console.log('Fetching products from:', url);
-      
-      const response = await fetch(url);
-      console.log('Response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Received data:', data);
-        setProducts(data.data || []);
-      } else {
-        console.error('Failed to load products:', response.status, response.statusText);
-      }
+      const response = await api.get(`/products?category=${encodeURIComponent(category!)}`);
+      setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {

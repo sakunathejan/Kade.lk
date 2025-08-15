@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+import { api } from '../services/http';
 
 interface Product {
   _id: string;
@@ -54,14 +55,8 @@ const Products: React.FC = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/products');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.data || []);
-      } else {
-        console.error('Failed to load products');
-      }
+      const response = await api.get('/products');
+      setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {

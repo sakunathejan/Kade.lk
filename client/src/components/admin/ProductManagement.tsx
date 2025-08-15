@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import MediaUpload from '../ui/MediaUpload';
 import { useAppContext } from '../../context/AppContext';
+import { api } from '../../services/http';
 
 interface MediaFile {
   file: File;
@@ -50,17 +51,8 @@ const ProductManagement: React.FC = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/products/super-admin', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.data);
-      }
+      const response = await api.get('/products/super-admin');
+      setProducts(response.data.data);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -74,17 +66,8 @@ const ProductManagement: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/products/${productId}/super-admin`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        loadProducts();
-      }
+      await api.delete(`/products/${productId}/super-admin`);
+      loadProducts();
     } catch (error) {
       console.error('Error deleting product:', error);
     }
@@ -111,8 +94,6 @@ const ProductManagement: React.FC = () => {
     setUploading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      
       // Create FormData for multipart/form-data
       const formData = new FormData();
       formData.append('name', productForm.name);
@@ -129,18 +110,11 @@ const ProductManagement: React.FC = () => {
         formData.append('media', media.file);
       });
 
-      const createResponse = await fetch('/api/products/super-admin', {
-        method: 'POST',
+      await api.post('/products/super-admin', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData, let browser set it
+          'Content-Type': 'multipart/form-data',
         },
-        body: formData
       });
-
-      if (!createResponse.ok) {
-        throw new Error('Failed to create product');
-      }
 
       // Reset form and close modal
       setProductForm({
