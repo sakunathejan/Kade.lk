@@ -34,10 +34,76 @@ app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
+
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://taprobuylk.netlify.app',
+  'https://taprobuylk.netlify.app/',
+  process.env.CLIENT_URL
+].filter(Boolean); // Remove any undefined values
+
+console.log('🔒 CORS Allowed Origins:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('🔒 CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
+    
+    console.log('🔒 CORS: Request from origin:', origin);
+    
+    // Check if origin is in allowed origins
+    if (allowedOrigins.includes(origin)) {
+      console.log('🔒 CORS: Origin allowed (exact match)');
+      return callback(null, true);
+    }
+    
+    // Check if origin matches any of the allowed origins (handling trailing slashes)
+    const normalizedOrigin = origin.replace(/\/$/, ''); // Remove trailing slash
+    const isAllowed = allowedOrigins.some(allowed => 
+      allowed.replace(/\/$/, '') === normalizedOrigin
+    );
+    
+    if (isAllowed) {
+      console.log('🔒 CORS: Origin allowed (normalized match)');
+      return callback(null, true);
+    }
+    
+    console.log('🔒 CORS: Origin blocked:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Requested-With'],
+  maxAge: 86400 // 24 hours
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Add CORS error handling middleware
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    console.log('🚫 CORS Error:', {
+      origin: req.headers.origin,
+      method: req.method,
+      url: req.url,
+      allowedOrigins: allowedOrigins
+    });
+    
+    return res.status(403).json({
+      success: false,
+      message: 'CORS policy: Origin not allowed',
+      origin: req.headers.origin,
+      allowedOrigins: allowedOrigins
+    });
+  }
+  next(err);
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -76,7 +142,19 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'TaproBuy API is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    corsOrigins: allowedOrigins,
+    clientUrl: process.env.CLIENT_URL
+  });
+});
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'CORS test successful',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
 });
 
