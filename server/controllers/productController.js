@@ -17,6 +17,12 @@ exports.getProducts = async (req, res, next) => {
       query = query.where('category', req.query.category);
     }
 
+    // Handle subcategory filtering
+    if (req.query.subcategory) {
+      console.log('Filtering by subcategory:', req.query.subcategory);
+      query = query.where('subcategory', req.query.subcategory);
+    }
+
     // Copy req.query for other filters
     const reqQuery = { ...req.query };
 
@@ -60,6 +66,9 @@ exports.getProducts = async (req, res, next) => {
     const countQuery = Product.find({ isActive: true });
     if (req.query.category && req.query.category !== 'all') {
       countQuery.where('category', req.query.category);
+    }
+    if (req.query.subcategory) {
+      countQuery.where('subcategory', req.query.subcategory);
     }
     const total = await countQuery.countDocuments();
 

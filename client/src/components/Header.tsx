@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import ThemeToggle from './ThemeToggle';
+import HeaderCategories from './HeaderCategories';
 import { motion } from 'framer-motion';
 
 const Header: React.FC = () => {
@@ -69,6 +70,12 @@ const Header: React.FC = () => {
             </Link>
           </motion.div>
           
+          {/* <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}>
+            <Link to="/categories" className="text-gray-700 hover:text-[color:var(--color-primary)] dark:text-gray-300 dark:hover:text-white transition-colors duration-200 font-medium">
+              Categories
+            </Link>
+          </motion.div> */}
+          
           {/* Products Dropdown */}
           <div className="relative group">
             <motion.div 
@@ -100,37 +107,7 @@ const Header: React.FC = () => {
           </div>
           
           {/* Categories Dropdown */}
-          <div className="relative group">
-            <motion.div 
-              className="flex items-center gap-1 cursor-pointer text-gray-700 hover:text-[color:var(--color-primary)] dark:text-gray-300 dark:hover:text-white transition-colors duration-200 font-medium"
-              whileHover={{ y: -2 }}
-            >
-              <span>Categories</span>
-              <svg className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </motion.div>
-            
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top scale-95 group-hover:scale-100 z-50">
-              <div className="py-2">
-                <Link to="/categories/electronics" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-[color:var(--color-primary)] transition-colors duration-200">
-                  <i className="fa-solid fa-mobile-alt mr-2"></i>Electronics
-                </Link>
-                <Link to="/categories/food" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-[color:var(--color-primary)] transition-colors duration-200">
-                  <i className="fa-solid fa-utensils mr-2"></i>Food
-                </Link>
-                <Link to="/categories/clothing" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-[color:var(--color-primary)] transition-colors duration-200">
-                  <i className="fa-solid fa-tshirt mr-2"></i>Clothing
-                </Link>
-                <Link to="/categories/beauty" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-[color:var(--color-primary)] transition-colors duration-200">
-                  <i className="fa-solid fa-spa mr-2"></i>Beauty
-                </Link>
-                <Link to="/categories" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-[color:var(--color-primary)] transition-colors duration-200 border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-                  <i className="fa-solid fa-tags mr-2"></i>View All Categories
-                </Link>
-              </div>
-            </div>
-          </div>
+          <HeaderCategories />
           
           {/* Support Dropdown */}
           <div className="relative group">
@@ -373,54 +350,57 @@ const Header: React.FC = () => {
           </motion.div>
 
           {/* Categories Section */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: isMobileMenuOpen ? 1 : 0, x: isMobileMenuOpen ? 0 : -20 }}
-            transition={{ delay: 0.25 }}
-            className="border-t border-gray-200 dark:border-gray-700 pt-4"
-          >
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 px-1">CATEGORIES</div>
+            <Link 
+              to="/categories" 
+              className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200 font-medium"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <i className="fa-solid fa-th-large mr-3"></i>
+              View All Categories
+            </Link>
             <Link 
               to="/categories/electronics" 
               className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <i className="fa-solid fa-mobile-alt mr-3"></i>
+              <i className="fa-solid fa-laptop mr-3"></i>
               Electronics
-            </Link>
-            <Link 
-              to="/categories/food" 
-              className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <i className="fa-solid fa-utensils mr-3"></i>
-              Food
             </Link>
             <Link 
               to="/categories/clothing" 
               className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <i className="fa-solid fa-tshirt mr-3"></i>
+              <i className="fa-solid fa-shirt mr-3"></i>
               Clothing
             </Link>
             <Link 
-              to="/categories/beauty" 
+              to="/categories/books" 
               className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <i className="fa-solid fa-spa mr-3"></i>
-              Beauty
+              <i className="fa-solid fa-book mr-3"></i>
+              Books
             </Link>
             <Link 
-              to="/categories" 
+              to="/categories/home" 
               className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <i className="fa-solid fa-tags mr-3"></i>
-              View All Categories
+              <i className="fa-solid fa-home mr-3"></i>
+              Home & Garden
             </Link>
-          </motion.div>
+            <Link 
+              to="/categories/sports" 
+              className="block py-2 text-base text-gray-700 dark:text-gray-300 hover:text-[color:var(--color-primary)] transition-colors duration-200"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <i className="fa-solid fa-dumbbell mr-3"></i>
+              Sports & Outdoors
+            </Link>
+          </div>
 
           {/* Support Section */}
           <motion.div

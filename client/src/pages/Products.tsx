@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
 import { api } from '../services/http';
+import { categoryNames, getCategoryIcon } from '../utils/categories';
 
 interface Product {
   _id: string;
@@ -32,21 +33,8 @@ const Products: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage] = useState(12);
 
-  // Categories from the Product model
-  const categories = [
-    'all',
-    'Electronics',
-    'Fashion',
-    'Home & Garden',
-    'Sports',
-    'Books',
-    'Beauty',
-    'Toys',
-    'Automotive',
-    'Health',
-    'Food & Beverages',
-    'Other'
-  ];
+  // Categories from the shared configuration
+  const categories = categoryNames;
 
   useEffect(() => {
     loadProducts();
@@ -55,7 +43,7 @@ const Products: React.FC = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products');
+      const response = await api.get('/api/products');
       setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -154,13 +142,23 @@ const Products: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategoryChange(category)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                   selectedCategory === category
                     ? 'bg-primary text-white shadow-lg'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600'
                 }`}
               >
-                {category === 'all' ? 'All Categories' : category}
+                {category === 'all' ? (
+                  <>
+                    <span>📦</span>
+                    All Categories
+                  </>
+                ) : (
+                  <>
+                    <span>{getCategoryIcon(category)}</span>
+                    {category}
+                  </>
+                )}
               </motion.button>
             ))}
           </div>

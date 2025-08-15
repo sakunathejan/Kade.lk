@@ -42,17 +42,17 @@ class RealTimeAPIService {
   private dataCache = new Map<string, any>();
 
   async getProducts(page = 1, limit = 10) {
-    const res = await api.get('/products', { params: { page, limit } });
+    const res = await api.get('/api/products', { params: { page, limit } });
     return res.data;
   }
 
   async getUsers(page = 1, limit = 5) {
-    const res = await api.get('/users', { params: { page, limit } });
+    const res = await api.get('/api/users', { params: { page, limit } });
     return res.data;
   }
 
   async getOrders(page = 1, limit = 5) {
-    const res = await api.get('/orders', { params: { page, limit } });
+    const res = await api.get('/api/orders', { params: { page, limit } });
     return res.data;
   }
 

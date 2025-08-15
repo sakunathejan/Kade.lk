@@ -9,6 +9,8 @@ import Cart from './pages/Cart';
 import ProductDetails from './pages/ProductDetails';
 import Products from './pages/Products';
 import CategoryProducts from './pages/CategoryProducts';
+import CategoryDemo from './pages/CategoryDemo';
+import Categories from './pages/Categories';
 import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -27,6 +29,8 @@ function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/products" element={<Products />} />
             <Route path="/category/:category" element={<CategoryProducts />} />
+            <Route path="/category-demo" element={<CategoryDemo />} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/products/:id" element={<ProductDetails />} />
             <Route path="/checkout" element={<Checkout />} />
             

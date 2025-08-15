@@ -5,6 +5,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from '../services/http';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { categoryNames } from '../utils/categories';
 
 interface ProductListItem {
   _id: string;
@@ -42,20 +43,20 @@ const Home: React.FC = () => {
   const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -100], { clamp: false });
   const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0.8], { clamp: false });
 
-  const categories = ['all', 'Electronics', 'Fashion', 'Home & Garden', 'Sports', 'Books', 'Beauty', 'Toys', 'Automotive', 'Health', 'Food & Beverages', 'Other'];
+  const categories = categoryNames;
 
   // Partner stores & recommendations
   const { data: stores } = useQuery({
     queryKey: ['stores'],
-    queryFn: async () => (await api.get('/stores/highlights')).data,
+    queryFn: async () => (await api.get('/api/stores/highlights')).data,
   });
   const { data: recommendations } = useQuery({
     queryKey: ['recommendations'],
-    queryFn: async () => (await api.get('/recommendations/home')).data,
+    queryFn: async () => (await api.get('/api/recommendations/home')).data,
   });
 
   const fetchPage = async ({ pageParam = 1 }) => {
-    const res = await api.get('/products', {
+    const res = await api.get('/api/products', {
       params: {
         page: pageParam,
         limit: 12,
@@ -117,6 +118,12 @@ const Home: React.FC = () => {
     }
   };
 
+  // Get category counts
+  const getCategoryCount = (cat: string) => {
+    if (cat === 'all') return products.length;
+    return products.filter(p => p.category === cat).length;
+  };
+
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsletterEmail) return;
@@ -145,12 +152,6 @@ const Home: React.FC = () => {
       setNewsletterStatus('error');
       setNewsletterMessage('Something went wrong. Please try again.');
     }
-  };
-
-  // Get category counts
-  const getCategoryCount = (cat: string) => {
-    if (cat === 'all') return products.length;
-    return products.filter(p => p.category === cat).length;
   };
 
   // Scroll to top functionality
@@ -382,6 +383,24 @@ const Home: React.FC = () => {
                 </motion.button>
               ))}
             </div>
+            
+            {/* View All Categories Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+              className="mt-8"
+            >
+              <Link
+                to="/categories"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                <span>📚</span>
+                View All Categories
+                <span>→</span>
+              </Link>
+            </motion.div>
           </motion.div>
         </div>
       </section>

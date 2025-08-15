@@ -144,7 +144,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const res = await api.get('/auth/me');
+        const res = await api.get('/api/auth/me');
         dispatch({ type: 'SET_USER', payload: res.data.user });
       } catch (error: any) {
         // Handle 429 (Too Many Requests) gracefully
@@ -169,7 +169,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const isEmail = userId.includes('@');
       const loginData = isEmail ? { email: userId, password } : { userId, password };
       
-      const res = await api.post('/auth/login', loginData);
+              const res = await api.post('/api/auth/login', loginData);
       const { token, user } = res.data;
       
       localStorage.setItem('token', token);
@@ -194,7 +194,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
     try {
-      const res = await api.put('/auth/updatepassword', { currentPassword, newPassword });
+              const res = await api.put('/api/auth/updatepassword', { currentPassword, newPassword });
       dispatch({ type: 'UPDATE_USER', payload: { mustChangePassword: false } });
       return res.data;
     } catch (error: any) {
@@ -204,7 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createUser = async (userData: CreateUserData) => {
     try {
-      const res = await api.post('/users', userData);
+              const res = await api.post('/api/users', userData);
       return res.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to create user');
@@ -213,7 +213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const registerCustomer = async (customerData: CustomerRegistrationData) => {
     try {
-      const res = await api.post('/auth/register', customerData);
+              const res = await api.post('/api/auth/register', customerData);
       return res.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to register customer');
@@ -276,7 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getUsers = async (role?: string) => {
     try {
       const params = role ? { role } : {};
-      const res = await api.get('/users', { params });
+              const res = await api.get('/api/users', { params });
       return res.data.data || res.data; // Handle both response formats
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch users');

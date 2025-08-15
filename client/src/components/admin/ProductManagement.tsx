@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import MediaUpload from '../ui/MediaUpload';
 import { useAppContext } from '../../context/AppContext';
 import { api } from '../../services/http';
+import { categoriesData, getSubcategories } from '../../utils/categories';
 
 interface MediaFile {
   file: File;
@@ -44,6 +45,8 @@ const ProductManagement: React.FC = () => {
     stock: ''
   });
 
+
+
   useEffect(() => {
     loadProducts();
   }, []);
@@ -51,7 +54,7 @@ const ProductManagement: React.FC = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products/super-admin');
+      const response = await api.get('/api/products/super-admin');
       setProducts(response.data.data);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -110,7 +113,7 @@ const ProductManagement: React.FC = () => {
         formData.append('media', media.file);
       });
 
-      await api.post('/products/super-admin', formData, {
+              await api.post('/api/products/super-admin', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -153,6 +156,17 @@ const ProductManagement: React.FC = () => {
       stock: ''
     });
     setSelectedMedia([]);
+  };
+
+
+
+  // Handle category change and reset subcategory
+  const handleCategoryChange = (categoryName: string) => {
+    setProductForm(prev => ({
+      ...prev,
+      category: categoryName,
+      subcategory: '' // Reset subcategory when category changes
+    }));
   };
 
   if (loading) {
@@ -295,8 +309,29 @@ const ProductManagement: React.FC = () => {
                             </button>
               </div>
 
-              <form onSubmit={handleCreateProduct} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <form onSubmit={handleCreateProduct} className="space-y-6">
+                 {/* Category Preview */}
+                 {productForm.category && (
+                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                     <div className="flex items-center space-x-3">
+                       <span className="text-2xl">
+                         {categoriesData.find(cat => cat.name === productForm.category)?.icon}
+                       </span>
+                       <div>
+                         <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                           Selected Category: {productForm.category}
+                         </h4>
+                         {productForm.subcategory && (
+                           <p className="text-sm text-blue-700 dark:text-blue-300">
+                             Subcategory: {productForm.subcategory}
+                           </p>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 )}
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Product Name *
@@ -341,46 +376,48 @@ const ProductManagement: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Category *
-                    </label>
-                    <select 
-                      value={productForm.category}
-                      onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                      required
-                    >
-                      <option value="">Select Category</option>
-                      <option value="Electronics">Electronics</option>
-                      <option value="Fashion">Fashion</option>
-                      <option value="Home & Garden">Home & Garden</option>
-                      <option value="Sports">Sports</option>
-                      <option value="Books">Books</option>
-                      <option value="Beauty">Beauty</option>
-                      <option value="Toys">Toys</option>
-                      <option value="Automotive">Automotive</option>
-                      <option value="Health">Health</option>
-                      <option value="Food & Beverages">Food & Beverages</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                       Category *
+                     </label>
+                     <select 
+                       value={productForm.category}
+                       onChange={(e) => handleCategoryChange(e.target.value)}
+                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                       required
+                     >
+                       <option value="">Select Category</option>
+                       {categoriesData.map((category) => (
+                         <option key={category.name} value={category.name}>
+                           {category.icon} {category.name}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Subcategory *
-                    </label>
-                    <input
-                      type="text"
-                      value={productForm.subcategory}
-                      onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                      placeholder="Enter subcategory"
-                      required
-                    />
-                  </div>
-                </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                       Subcategory *
+                     </label>
+                     <select
+                       value={productForm.subcategory}
+                       onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })}
+                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                       required
+                       disabled={!productForm.category}
+                     >
+                       <option value="">
+                         {productForm.category ? 'Select Subcategory' : 'Select Category First'}
+                       </option>
+                       {productForm.category && getSubcategories(productForm.category).map((subcategory) => (
+                         <option key={subcategory} value={subcategory}>
+                           {subcategory}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
 
                                  <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
