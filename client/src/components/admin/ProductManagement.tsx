@@ -94,6 +94,35 @@ const ProductManagement: React.FC = () => {
       return;
     }
 
+    // Validate file types
+    const invalidFiles = selectedMedia.filter(media => {
+      const isImage = media.file.type.startsWith('image/');
+      const isVideo = media.file.type.startsWith('video/');
+      return !isImage && !isVideo;
+    });
+
+    if (invalidFiles.length > 0) {
+      alert('Only image and video files are allowed');
+      return;
+    }
+
+    // Validate file sizes
+    const maxImageSize = 5 * 1024 * 1024; // 5MB
+    const maxVideoSize = 50 * 1024 * 1024; // 50MB
+    
+    const oversizedFiles = selectedMedia.filter(media => {
+      const isImage = media.file.type.startsWith('image/');
+      const maxSize = isImage ? maxImageSize : maxVideoSize;
+      return media.file.size > maxSize;
+    });
+
+    if (oversizedFiles.length > 0) {
+      const fileType = oversizedFiles[0].file.type.startsWith('image/') ? 'image' : 'video';
+      const maxSize = fileType === 'image' ? '5MB' : '50MB';
+      alert(`${fileType.charAt(0).toUpperCase() + fileType.slice(1)} files must be smaller than ${maxSize}`);
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -113,11 +142,14 @@ const ProductManagement: React.FC = () => {
         formData.append('media', media.file);
       });
 
-              await api.post('/api/products/super-admin', formData, {
+      console.log('🚀 Uploading product with media...');
+      const response = await api.post('/api/products/super-admin', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      console.log('✅ Product created successfully:', response.data);
 
       // Reset form and close modal
       setProductForm({
@@ -132,10 +164,25 @@ const ProductManagement: React.FC = () => {
       setShowCreateModal(false);
       loadProducts();
 
-      alert('Product created successfully!');
-    } catch (error) {
-      console.error('Error creating product:', error);
-      alert('Failed to create product. Please try again.');
+      // Show success message with media count
+      const mediaCount = selectedMedia.length;
+      alert(`Product created successfully with ${mediaCount} media file${mediaCount !== 1 ? 's' : ''}!`);
+    } catch (error: any) {
+      console.error('❌ Error creating product:', error);
+      
+      let errorMessage = 'Failed to create product. Please try again.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 413) {
+        errorMessage = 'File size too large. Please use smaller images/videos.';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response.data.message || 'Invalid data provided. Please check all fields.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+      
+      alert(`Error: ${errorMessage}`);
     } finally {
       setUploading(false);
     }

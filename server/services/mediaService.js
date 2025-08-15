@@ -1,4 +1,5 @@
 const { supabaseAdmin, supabaseAnon, STORAGE_BUCKET, MEDIA_CONFIG } = require('../config/supabase');
+const sharp = require('sharp');
 
 class MediaService {
   /**
@@ -28,6 +29,41 @@ class MediaService {
   }
 
   /**
+   * Optimize image before upload (reduce size while maintaining quality)
+   */
+  static async optimizeImage(buffer, mimetype) {
+    try {
+      if (mimetype.startsWith('image/')) {
+        const optimizedBuffer = await sharp(buffer)
+          .resize(800, 800, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .jpeg({ quality: 80, progressive: true })
+          .png({ quality: 80, progressive: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        
+        return optimizedBuffer;
+      }
+      return buffer; // Return original buffer for videos
+    } catch (error) {
+      console.warn('Image optimization failed, using original:', error.message);
+      return buffer;
+    }
+  }
+
+  /**
+   * Generate unique filename with UUID
+   */
+  static generateUniqueFileName(originalName, productId, mediaIndex) {
+    const fileExt = originalName.split('.').pop().toLowerCase();
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    return `${productId}_${mediaIndex}_${timestamp}_${randomId}.${fileExt}`;
+  }
+
+  /**
    * Upload single media file to Supabase storage
    */
   static async uploadMedia(file, productId, mediaIndex, userRole, userId) {
@@ -38,10 +74,12 @@ class MediaService {
         return { success: false, error: validation.error };
       }
 
+      // Optimize image if it's an image file
+      const optimizedBuffer = await this.optimizeImage(file.buffer, file.mimetype);
+      
       // Generate unique filename
-      const fileExt = file.originalname.split('.').pop();
-      const uniqueFileName = `${productId}_${mediaIndex}_${Date.now()}.${fileExt}`;
-      const filePath = `${userId}/${productId}/${uniqueFileName}`;
+      const uniqueFileName = this.generateUniqueFileName(file.originalname, productId, mediaIndex);
+      const filePath = `products/${productId}/${uniqueFileName}`;
 
       // Use appropriate Supabase client based on user role
       const supabaseClient = userRole === 'superadmin' ? supabaseAdmin : supabaseAnon;
@@ -49,7 +87,7 @@ class MediaService {
       // Upload to Supabase storage
       const { data, error } = await supabaseClient.storage
         .from(STORAGE_BUCKET)
-        .upload(filePath, file.buffer, {
+        .upload(filePath, optimizedBuffer, {
           contentType: file.mimetype,
           cacheControl: '3600',
           upsert: false
@@ -65,15 +103,23 @@ class MediaService {
         .from(STORAGE_BUCKET)
         .getPublicUrl(filePath);
 
+      if (!urlData.publicUrl) {
+        return { success: false, error: 'Failed to generate public URL' };
+      }
+
+      console.log(`✅ Media uploaded successfully: ${filePath} -> ${urlData.publicUrl}`);
+
       return { 
         success: true, 
         url: urlData.publicUrl,
         type: validation.type,
-        path: filePath
+        path: filePath,
+        filename: uniqueFileName,
+        size: optimizedBuffer.length
       };
     } catch (error) {
       console.error('Media upload error:', error);
-      return { success: false, error: 'Failed to upload media' };
+      return { success: false, error: 'Failed to upload media: ' + error.message };
     }
   }
 
@@ -81,11 +127,34 @@ class MediaService {
    * Upload multiple media files to Supabase storage
    */
   static async uploadMultipleMedia(files, productId, userRole, userId) {
+    if (!files || files.length === 0) {
+      return [];
+    }
+
+    console.log(`🚀 Starting upload of ${files.length} media files for product ${productId}`);
+
     const uploadPromises = files.map((file, index) =>
       this.uploadMedia(file, productId, index, userRole, userId)
     );
 
-    return Promise.all(uploadPromises);
+    try {
+      const results = await Promise.all(uploadPromises);
+      
+      // Log results
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+      
+      console.log(`✅ Upload completed: ${successful.length} successful, ${failed.length} failed`);
+      
+      if (failed.length > 0) {
+        console.error('❌ Failed uploads:', failed);
+      }
+
+      return results;
+    } catch (error) {
+      console.error('❌ Multiple media upload failed:', error);
+      return files.map(() => ({ success: false, error: 'Upload failed: ' + error.message }));
+    }
   }
 
   /**
@@ -97,7 +166,7 @@ class MediaService {
       const urlParts = imageUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
       const productId = urlParts[urlParts.length - 2];
-      const filePath = `${userId}/${productId}/${fileName}`;
+      const filePath = `products/${productId}/${fileName}`;
 
       // Use appropriate Supabase client based on user role
       const supabaseClient = userRole === 'superadmin' ? supabaseAdmin : supabaseAnon;
@@ -111,6 +180,7 @@ class MediaService {
         return { success: false, error: error.message };
       }
 
+      console.log(`✅ Media deleted successfully: ${filePath}`);
       return { success: true };
     } catch (error) {
       console.error('Media delete error:', error);
@@ -131,7 +201,7 @@ class MediaService {
    */
   static async getProductMedia(productId, userRole, userId) {
     try {
-      const filePath = `${userId}/${productId}`;
+      const filePath = `products/${productId}`;
       
       // Use appropriate Supabase client based on user role
       const supabaseClient = userRole === 'superadmin' ? supabaseAdmin : supabaseAnon;
@@ -193,6 +263,25 @@ class MediaService {
     } catch (error) {
       console.error('Error updating product media:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Test Supabase connection and bucket access
+   */
+  static async testConnection() {
+    try {
+      const { data, error } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .list('', { limit: 1 });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, message: 'Supabase connection successful' };
+    } catch (error) {
+      return { success: false, error: 'Connection failed: ' + error.message };
     }
   }
 }

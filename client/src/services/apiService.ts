@@ -57,39 +57,109 @@ class RealTimeAPIService {
   }
 
   calculatePublicAnalytics(productsData: any, usersData: any, ordersData: any): Analytics {
+    // Add null checks and provide fallbacks
+    if (!productsData || !usersData || !ordersData) {
+      console.warn('Missing data for public analytics calculation:', { productsData, usersData, ordersData });
+      return {
+        totalProducts: 0,
+        totalCustomers: 0,
+        totalOrders: 0
+      };
+    }
+
+    // Safely access users array with fallback
+    const users = Array.isArray(usersData.users) ? usersData.users : 
+                  Array.isArray(usersData.data) ? usersData.data : 
+                  Array.isArray(usersData) ? usersData : [];
+
     return {
-      totalProducts: productsData.totalProducts,
-      totalCustomers: usersData.users.filter((user: User) => user.role === 'customer').length,
-      totalOrders: ordersData.totalOrders
+      totalProducts: productsData.totalProducts || productsData.data?.length || 0,
+      totalCustomers: users.filter((user: User) => user?.role === 'customer').length,
+      totalOrders: ordersData.totalOrders || ordersData.data?.length || 0
     };
   }
 
   calculateAdminAnalytics(productsData: any, usersData: any, ordersData: any): Analytics {
+    // Add null checks and provide fallbacks
+    if (!productsData || !usersData || !ordersData) {
+      console.warn('Missing data for analytics calculation:', { productsData, usersData, ordersData });
+      return {
+        totalProducts: 0,
+        totalCustomers: 0,
+        totalOrders: 0,
+        totalUsers: 0,
+        monthlyRevenue: 0,
+        ordersThisMonth: 0,
+        newUsersThisMonth: 0,
+        averageOrderValue: 0,
+        totalRevenue: 0
+      };
+    }
+
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
-    const monthlyOrders = ordersData.orders.filter((order: Order) => {
+    // Safely access orders array with fallback
+    const orders = Array.isArray(ordersData.orders) ? ordersData.orders : 
+                   Array.isArray(ordersData.data) ? ordersData.data : 
+                   Array.isArray(ordersData) ? ordersData : [];
+    
+    // Safely access users array with fallback
+    const users = Array.isArray(usersData.users) ? usersData.users : 
+                  Array.isArray(usersData.data) ? usersData.data : 
+                  Array.isArray(usersData) ? usersData : [];
+    
+    // Handle empty arrays gracefully
+    if (orders.length === 0) {
+      console.log('No orders found, returning default analytics');
+      return {
+        totalUsers: usersData.totalUsers || users.length || 0,
+        totalCustomers: users.filter((user: User) => user?.role === 'customer').length,
+        totalProducts: productsData.totalProducts || productsData.data?.length || 0,
+        monthlyRevenue: 0,
+        ordersThisMonth: 0,
+        newUsersThisMonth: users.filter((user: User) => {
+          if (!user || !user.createdAt) return false;
+          const userDate = new Date(user.createdAt);
+          return userDate.getMonth() === currentMonth && userDate.getFullYear() === currentYear;
+        }).length,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        totalRevenue: 0
+      };
+    }
+    
+    const monthlyOrders = orders.filter((order: Order) => {
+      if (!order || !order.createdAt) return false;
       const orderDate = new Date(order.createdAt);
       return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
     });
     
-    const monthlyRevenue = monthlyOrders.reduce((sum: number, order: Order) => sum + order.totalAmount, 0);
-    const newUsersThisMonth = usersData.users.filter((user: User) => {
+    const monthlyRevenue = monthlyOrders.reduce((sum: number, order: Order) => {
+      return sum + (order?.totalAmount || 0);
+    }, 0);
+    
+    const newUsersThisMonth = users.filter((user: User) => {
+      if (!user || !user.createdAt) return false;
       const userDate = new Date(user.createdAt);
       return userDate.getMonth() === currentMonth && userDate.getFullYear() === currentYear;
     }).length;
 
-    const totalRevenue = ordersData.orders.reduce((sum: number, order: Order) => sum + order.totalAmount, 0);
-    const averageOrderValue = ordersData.totalOrders > 0 ? totalRevenue / ordersData.totalOrders : 0;
+    const totalRevenue = orders.reduce((sum: number, order: Order) => {
+      return sum + (order?.totalAmount || 0);
+    }, 0);
+    
+    const totalOrders = ordersData.totalOrders || orders.length || 0;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return {
-      totalUsers: usersData.totalUsers,
-      totalCustomers: usersData.users.filter((user: User) => user.role === 'customer').length,
-      totalProducts: productsData.totalProducts,
+      totalUsers: usersData.totalUsers || users.length || 0,
+      totalCustomers: users.filter((user: User) => user?.role === 'customer').length,
+      totalProducts: productsData.totalProducts || productsData.data?.length || 0,
       monthlyRevenue,
       ordersThisMonth: monthlyOrders.length,
       newUsersThisMonth,
-      totalOrders: ordersData.totalOrders,
+      totalOrders,
       averageOrderValue,
       totalRevenue
     };

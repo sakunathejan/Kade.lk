@@ -21,7 +21,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const getFirstImage = () => {
     if (media && media.length > 0) {
       const firstImage = media.find(item => item.type === 'image');
-      if (firstImage) return firstImage.url;
+      if (firstImage && firstImage.url) return firstImage.url;
     }
     
     if (images && images.length > 0) {
@@ -32,6 +32,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   };
 
   const firstImage = getFirstImage();
+
+  // Handle image load error
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.warn('Image failed to load:', e.currentTarget.src);
+    e.currentTarget.style.display = 'none';
+    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+  };
+
+  // Handle image load success
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.style.display = 'block';
+    e.currentTarget.nextElementSibling?.classList.add('hidden');
+  };
 
   return (
     <motion.div 
@@ -51,13 +64,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         
         {/* Product Image or Icon */}
         {firstImage ? (
-          <motion.img
-            src={firstImage}
-            alt={title}
-            className="w-full h-full object-cover"
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.3 }}
-          />
+          <>
+            <motion.img
+              src={firstImage}
+              alt={title}
+              className="w-full h-full object-cover"
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.3 }}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+            />
+            {/* Fallback icon (hidden by default, shown on image error) */}
+            <motion.div 
+              className="absolute inset-0 flex items-center justify-center text-indigo-400 dark:text-gray-600 hidden"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              transition={{ duration: 0.3 }}
+            >
+              <i className="fa-solid fa-bag-shopping text-4xl opacity-60" />
+            </motion.div>
+          </>
         ) : (
           <motion.div 
             className="absolute inset-0 flex items-center justify-center text-indigo-400 dark:text-gray-600"

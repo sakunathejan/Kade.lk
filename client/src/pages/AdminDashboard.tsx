@@ -18,11 +18,38 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      const products = await apiService.getProducts(1, 100);
-      const users = await apiService.getUsers(1, 100);
-      const orders = await apiService.getOrders(1, 100);
-      const computed = apiService.calculateAdminAnalytics(products, users, orders);
-      setStats(computed);
+      try {
+        console.log('🔄 Loading admin dashboard data...');
+        
+        const products = await apiService.getProducts(1, 100);
+        console.log('📦 Products data:', products);
+        
+        const users = await apiService.getUsers(1, 100);
+        console.log('👥 Users data:', users);
+        
+        const orders = await apiService.getOrders(1, 100);
+        console.log('📋 Orders data:', orders);
+        
+        console.log('🧮 Calculating analytics...');
+        const computed = apiService.calculateAdminAnalytics(products, users, orders);
+        console.log('✅ Analytics computed:', computed);
+        
+        setStats(computed);
+      } catch (error) {
+        console.error('❌ Error loading admin dashboard data:', error);
+        // Set default stats on error
+        setStats({
+          totalUsers: 0,
+          totalCustomers: 0,
+          totalProducts: 0,
+          monthlyRevenue: 0,
+          ordersThisMonth: 0,
+          newUsersThisMonth: 0,
+          totalOrders: 0,
+          averageOrderValue: 0,
+          totalRevenue: 0
+        });
+      }
     })();
   }, []);
 

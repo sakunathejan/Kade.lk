@@ -14,6 +14,7 @@ const {
   getCategories
 } = require('../controllers/productController');
 const { protect, authorize, isApprovedSeller } = require('../middleware/auth');
+const MediaService = require('../services/mediaService');
 
 // Configure multer for media uploads (images and videos)
 const upload = multer({
@@ -33,6 +34,16 @@ const upload = multer({
 });
 
 const router = express.Router();
+
+// Test Supabase connection
+router.get('/test-supabase', async (req, res) => {
+  try {
+    const result = await MediaService.testConnection();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 router.route('/')
   .get(getProducts)

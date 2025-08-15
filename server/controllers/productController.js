@@ -1,6 +1,7 @@
 const Product = require('../models/Product');
 const ErrorResponse = require('../utils/errorResponse');
 const MediaService = require('../services/mediaService');
+const { supabaseAdmin } = require('../config/supabase');
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -136,121 +137,344 @@ exports.getProduct = async (req, res, next) => {
 // @access  Private (Seller/Admin)
 exports.createProduct = async (req, res, next) => {
   try {
-    // Add user to req.body
-    req.body.seller = req.user.id;
+    console.log('Creating product with data:', req.body);
+    console.log('Files received:', req.files ? req.files.length : 0);
 
-    const product = await Product.create(req.body);
-
-    // Handle media uploads if files are present
-    if (req.files && req.files.length > 0) {
-      try {
-        // Upload media to Supabase
-        const uploadResults = await MediaService.uploadMultipleMedia(
-          req.files, 
-          product._id, 
-          req.user.role, 
-          req.user.id
-        );
-
-        // Check upload results
-        const failedUploads = uploadResults.filter(result => !result.success);
-        if (failedUploads.length > 0) {
-          console.warn('Some media files failed to upload:', failedUploads);
-        }
-
-        // Update product with media URLs
-        const mediaUrls = uploadResults
-          .filter(result => result.success)
-          .map(result => ({ 
-            url: result.url, 
-            type: result.type 
-          }));
-
-        if (mediaUrls.length > 0) {
-          product.media = mediaUrls;
-          await product.save();
-        }
-      } catch (uploadError) {
-        console.error('Media upload error:', uploadError);
-        // Don't fail the entire request if media upload fails
-        // Product is still created, just without media
-      }
+    // Validate required fields
+    if (!req.body.name || !req.body.description || !req.body.price || !req.body.category || !req.body.subcategory || !req.body.stock) {
+      return next(new ErrorResponse('Please provide all required fields', 400));
     }
 
-    res.status(201).json({
-      success: true,
-      data: product
+    // Validate that media files are present
+    if (!req.files || req.files.length === 0) {
+      return next(new ErrorResponse('Please upload at least one image or video file', 400));
+    }
+
+    // Validate media files
+    const invalidFiles = req.files.filter(file => {
+      const isImage = file.mimetype.startsWith('image/');
+      const isVideo = file.mimetype.startsWith('video/');
+      return !isImage && !isVideo;
     });
+
+    if (invalidFiles.length > 0) {
+      return next(new ErrorResponse('Only image and video files are allowed', 400));
+    }
+
+    // Start transaction-like process
+    let product;
+    let uploadResults = [];
+
+    try {
+      // First, upload all media files to Supabase
+      console.log('🚀 Starting media upload to Supabase...');
+      uploadResults = await MediaService.uploadMultipleMedia(
+        req.files, 
+        null, // productId will be generated after product creation
+        req.user.role, 
+        req.user.id
+      );
+
+      // Check if any uploads failed
+      const failedUploads = uploadResults.filter(result => !result.success);
+      if (failedUploads.length > 0) {
+        console.error('❌ Media upload failures:', failedUploads);
+        
+        // If all uploads failed, return error
+        if (failedUploads.length === uploadResults.length) {
+          return next(new ErrorResponse(`Failed to upload media files: ${failedUploads.map(f => f.error).join(', ')}`, 500));
+        }
+        
+        // If some uploads failed, log warning but continue with successful ones
+        console.warn('⚠️ Some media files failed to upload, continuing with successful ones');
+      }
+
+      // Filter successful uploads
+      const successfulUploads = uploadResults.filter(result => result.success);
+      if (successfulUploads.length === 0) {
+        return next(new ErrorResponse('No media files were uploaded successfully', 500));
+      }
+
+      console.log(`✅ Successfully uploaded ${successfulUploads.length} media files`);
+
+      // Create product data
+      const productData = {
+        name: req.body.name,
+        description: req.body.description,
+        price: parseFloat(req.body.price),
+        category: req.body.category,
+        subcategory: req.body.subcategory,
+        stock: parseInt(req.body.stock),
+        seller: req.user.id,
+        media: successfulUploads.map(result => ({ 
+          url: result.url, 
+          type: result.type 
+        }))
+      };
+
+      // Create the product
+      console.log('📝 Creating product in database...');
+      product = await Product.create(productData);
+
+      // Update media files with the actual product ID
+      if (product._id) {
+        console.log('🔄 Updating media files with product ID...');
+        const updatedMedia = await Promise.all(
+          successfulUploads.map(async (uploadResult) => {
+            // Update the file path in Supabase to include the product ID
+            const oldPath = uploadResult.path;
+            const newPath = `products/${product._id}/${uploadResult.filename}`;
+            
+            try {
+              // Move the file to the correct location
+              const { error: moveError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .remove([oldPath]);
+
+              if (moveError) {
+                console.warn(`⚠️ Failed to remove old file ${oldPath}:`, moveError);
+              }
+
+              // Get new public URL
+              const { data: urlData } = supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .getPublicUrl(newPath);
+
+              return {
+                ...uploadResult,
+                url: urlData.publicUrl,
+                path: newPath
+              };
+            } catch (moveError) {
+              console.warn(`⚠️ Error updating file ${oldPath}:`, moveError);
+              return uploadResult; // Return original if update fails
+            }
+          })
+        );
+
+        // Update product with final media URLs
+        product.media = updatedMedia.map(media => ({ 
+          url: media.url, 
+          type: media.type 
+        }));
+        await product.save();
+      }
+
+      console.log('✅ Product created successfully with media');
+
+      res.status(201).json({
+        success: true,
+        data: product,
+        message: `Product created successfully with ${successfulUploads.length} media files`
+      });
+
+    } catch (uploadError) {
+      console.error('❌ Error during product creation or media upload:', uploadError);
+      
+      // If product was created but media upload failed, clean up
+      if (product && product._id) {
+        try {
+          await Product.findByIdAndDelete(product._id);
+          console.log('🧹 Cleaned up product after media upload failure');
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup product:', cleanupError);
+        }
+      }
+
+      // If media was uploaded but product creation failed, clean up media
+      if (uploadResults.length > 0) {
+        try {
+          const successfulUploads = uploadResults.filter(result => result.success);
+          for (const upload of successfulUploads) {
+            await supabaseAdmin.storage
+              .from(STORAGE_BUCKET)
+              .remove([upload.path]);
+          }
+          console.log('🧹 Cleaned up uploaded media after product creation failure');
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup media:', cleanupError);
+        }
+      }
+
+      return next(new ErrorResponse(`Failed to create product: ${uploadError.message}`, 500));
+    }
+
   } catch (error) {
+    console.error('❌ Unexpected error in createProduct:', error);
     next(error);
   }
 };
 
-// @desc    Create new product (Super Admin)
+// @desc    Create product (Super Admin)
 // @route   POST /api/products/super-admin
 // @access  Private (Super Admin)
 exports.createProductSuperAdmin = async (req, res, next) => {
   try {
-    // Super admin can create products for any seller
-    if (!req.body.seller) {
-      return next(new ErrorResponse('Seller ID is required', 400));
+    console.log('Creating product with data:', req.body);
+    console.log('Files received:', req.files ? req.files.length : 0);
+
+    // Validate required fields
+    if (!req.body.name || !req.body.description || !req.body.price || !req.body.category || !req.body.subcategory || !req.body.stock) {
+      return next(new ErrorResponse('Please provide all required fields', 400));
     }
 
-    // Create product first
-    const productData = {
-      name: req.body.name,
-      description: req.body.description,
-      price: parseFloat(req.body.price),
-      category: req.body.category,
-      subcategory: req.body.subcategory,
-      stock: parseInt(req.body.stock),
-      seller: req.body.seller,
-      media: [] // Will be populated after media upload
-    };
+    // Validate that media files are present
+    if (!req.files || req.files.length === 0) {
+      return next(new ErrorResponse('Please upload at least one image or video file', 400));
+    }
 
-    const product = await Product.create(productData);
+    // Validate media files
+    const invalidFiles = req.files.filter(file => {
+      const isImage = file.mimetype.startsWith('image/');
+      const isVideo = file.mimetype.startsWith('video/');
+      return !isImage && !isVideo;
+    });
 
-    // Handle media uploads if files are present
-    if (req.files && req.files.length > 0) {
-      try {
-        // Upload media to Supabase using superadmin privileges
-        const uploadResults = await MediaService.uploadMultipleMedia(
-          req.files, 
-          product._id, 
-          'superadmin', 
-          req.body.seller // Use the seller's ID for file organization
+    if (invalidFiles.length > 0) {
+      return next(new ErrorResponse('Only image and video files are allowed', 400));
+    }
+
+    // Start transaction-like process
+    let product;
+    let uploadResults = [];
+
+    try {
+      // First, upload all media files to Supabase
+      console.log('🚀 Starting media upload to Supabase...');
+      uploadResults = await MediaService.uploadMultipleMedia(
+        req.files, 
+        null, // productId will be generated after product creation
+        'superadmin', 
+        req.body.seller
+      );
+
+      // Check if any uploads failed
+      const failedUploads = uploadResults.filter(result => !result.success);
+      if (failedUploads.length > 0) {
+        console.error('❌ Media upload failures:', failedUploads);
+        
+        // If all uploads failed, return error
+        if (failedUploads.length === uploadResults.length) {
+          return next(new ErrorResponse(`Failed to upload media files: ${failedUploads.map(f => f.error).join(', ')}`, 500));
+        }
+        
+        // If some uploads failed, log warning but continue with successful ones
+        console.warn('⚠️ Some media files failed to upload, continuing with successful ones');
+      }
+
+      // Filter successful uploads
+      const successfulUploads = uploadResults.filter(result => result.success);
+      if (successfulUploads.length === 0) {
+        return next(new ErrorResponse('No media files were uploaded successfully', 500));
+      }
+
+      console.log(`✅ Successfully uploaded ${successfulUploads.length} media files`);
+
+      // Create product data
+      const productData = {
+        name: req.body.name,
+        description: req.body.description,
+        price: parseFloat(req.body.price),
+        category: req.body.category,
+        subcategory: req.body.subcategory,
+        stock: parseInt(req.body.stock),
+        seller: req.body.seller,
+        media: successfulUploads.map(result => ({ 
+          url: result.url, 
+          type: result.type 
+        }))
+      };
+
+      // Create the product
+      console.log('📝 Creating product in database...');
+      product = await Product.create(productData);
+
+      // Update media files with the actual product ID
+      if (product._id) {
+        console.log('🔄 Updating media files with product ID...');
+        const updatedMedia = await Promise.all(
+          successfulUploads.map(async (uploadResult) => {
+            // Update the file path in Supabase to include the product ID
+            const oldPath = uploadResult.path;
+            const newPath = `products/${product._id}/${uploadResult.filename}`;
+            
+            try {
+              // Move the file to the correct location
+              const { error: moveError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .move(oldPath, newPath);
+
+              if (moveError) {
+                console.warn(`⚠️ Failed to move file ${oldPath} to ${newPath}:`, moveError);
+                return uploadResult; // Return original if move fails
+              }
+
+              // Get new public URL
+              const { data: urlData } = supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .getPublicUrl(newPath);
+
+              return {
+                ...uploadResult,
+                url: urlData.publicUrl,
+                path: newPath
+              };
+            } catch (moveError) {
+              console.warn(`⚠️ Error moving file ${oldPath}:`, moveError);
+              return uploadResult; // Return original if move fails
+            }
+          })
         );
 
-        // Check upload results
-        const failedUploads = uploadResults.filter(result => !result.success);
-        if (failedUploads.length > 0) {
-          console.warn('Some media files failed to upload:', failedUploads);
-        }
-
-        // Update product with media URLs
-        const mediaUrls = uploadResults
-          .filter(result => result.success)
-          .map(result => ({ 
-            url: result.url, 
-            type: result.type 
-          }));
-
-        if (mediaUrls.length > 0) {
-          product.media = mediaUrls;
-          await product.save();
-        }
-      } catch (uploadError) {
-        console.error('Media upload error:', uploadError);
-        // Don't fail the entire request if media upload fails
-        // Product is still created, just without media
+        // Update product with final media URLs
+        product.media = updatedMedia.map(media => ({ 
+          url: media.url, 
+          type: media.type 
+        }));
+        await product.save();
       }
+
+      console.log('✅ Product created successfully with media');
+
+      res.status(201).json({
+        success: true,
+        data: product,
+        message: `Product created successfully with ${successfulUploads.length} media files`
+      });
+
+    } catch (uploadError) {
+      console.error('❌ Error during product creation or media upload:', uploadError);
+      
+      // If product was created but media upload failed, clean up
+      if (product && product._id) {
+        try {
+          await Product.findByIdAndDelete(product._id);
+          console.log('🧹 Cleaned up product after media upload failure');
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup product:', cleanupError);
+        }
+      }
+
+      // If media was uploaded but product creation failed, clean up media
+      if (uploadResults.length > 0) {
+        try {
+          const successfulUploads = uploadResults.filter(result => result.success);
+          for (const upload of successfulUploads) {
+            await supabaseAdmin.storage
+              .from(STORAGE_BUCKET)
+              .remove([upload.path]);
+          }
+          console.log('🧹 Cleaned up uploaded media after product creation failure');
+        } catch (cleanupError) {
+          console.error('❌ Failed to cleanup media:', cleanupError);
+        }
+      }
+
+      return next(new ErrorResponse(`Failed to create product: ${uploadError.message}`, 500));
     }
 
-    res.status(201).json({
-      success: true,
-      data: product
-    });
   } catch (error) {
+    console.error('❌ Unexpected error in createProductSuperAdmin:', error);
     next(error);
   }
 };
