@@ -16,7 +16,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   className = ''
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -27,19 +26,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    handleFiles(files);
-  }, []);
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    handleFiles(files);
   }, []);
 
   const handleFiles = useCallback((files: File[]) => {
@@ -56,6 +42,19 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     onImagesChange([...images, ...newImages]);
   }, [images, maxImages, onImagesChange]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+  }, [handleFiles]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    handleFiles(files);
+  }, [handleFiles]);
 
   const removeImage = useCallback((imageId: string) => {
     const imageToRemove = images.find(img => img.id === imageId);

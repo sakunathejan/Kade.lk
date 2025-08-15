@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext, User } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
 import ProductManagement from '../components/admin/ProductManagement';
 
 const SuperAdminDashboard: React.FC = () => {
-  const { state, getUsers, createUser, updateUser, deleteUser, activateUser, deactivateUser, hardDeleteUser } = useAppContext();
+  const { state, getUsers, createUser, activateUser, deactivateUser, hardDeleteUser } = useAppContext();
   const { user } = state;
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +29,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getUsers();
@@ -53,7 +49,11 @@ const SuperAdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getUsers]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();

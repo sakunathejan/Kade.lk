@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
@@ -13,6 +13,8 @@ interface Product {
   stock: number;
   ratings: number;
   isActive: boolean;
+  media?: Array<{ url: string; type: string }>;
+  images?: Array<{ url: string }>;
   seller: {
     name: string;
     _id: string;
@@ -24,14 +26,7 @@ const CategoryProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (category) {
-      console.log('CategoryProducts: category from params:', category);
-      loadProducts();
-    }
-  }, [category]);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
       const url = `/api/products?category=${encodeURIComponent(category!)}`;
@@ -52,7 +47,14 @@ const CategoryProducts: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [category]);
+
+  useEffect(() => {
+    if (category) {
+      console.log('CategoryProducts: category from params:', category);
+      loadProducts();
+    }
+  }, [category, loadProducts]);
 
   const handleAddToCart = (product: Product) => {
     console.log('Adding to cart:', product);
@@ -85,7 +87,9 @@ const CategoryProducts: React.FC = () => {
                 <ProductCard 
                   product={{
                     ...product,
-                    title: product.name
+                    title: product.name,
+                    media: product.media,
+                    images: product.images
                   }} 
                   onAddToCart={handleAddToCart}
                 />

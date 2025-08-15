@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
-import CategoryPills from '../components/CategoryPills';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from '../services/http';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 interface ProductListItem {
   _id: string;
@@ -68,7 +67,7 @@ const Home: React.FC = () => {
     return res.data;
   };
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, refetch, status } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, refetch } = useInfiniteQuery({
     queryKey: ['products', category, search, sort],
     queryFn: fetchPage,
     initialPageParam: 1,

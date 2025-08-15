@@ -45,6 +45,24 @@ const productSchema = new mongoose.Schema({
     type: Number,
     min: [0, 'Discount price cannot be negative']
   },
+  // Support both images and videos
+  media: [{
+    url: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      enum: ['image', 'video'],
+      required: true
+    },
+    public_id: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // Keep images for backward compatibility
   images: [{
     public_id: String,
     url: {

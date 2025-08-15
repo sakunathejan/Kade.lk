@@ -8,12 +8,30 @@ export interface ProductCardProps {
     description: string;
     price: number;
     category: string;
+    media?: Array<{ url: string; type: string }>;
+    images?: Array<{ url: string }>;
   };
   onAddToCart: (product: any) => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-  const { title, description, price, category } = product;
+  const { title, description, price, category, media, images } = product;
+
+  // Get the first available image (prioritize media array, fallback to images)
+  const getFirstImage = () => {
+    if (media && media.length > 0) {
+      const firstImage = media.find(item => item.type === 'image');
+      if (firstImage) return firstImage.url;
+    }
+    
+    if (images && images.length > 0) {
+      return images[0].url;
+    }
+    
+    return null;
+  };
+
+  const firstImage = getFirstImage();
 
   return (
     <motion.div 
@@ -31,14 +49,24 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           {category}
         </motion.div>
         
-        {/* Product Icon */}
-        <motion.div 
-          className="absolute inset-0 flex items-center justify-center text-indigo-400 dark:text-gray-600"
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          transition={{ duration: 0.3 }}
-        >
-          <i className="fa-solid fa-bag-shopping text-4xl opacity-60" />
-        </motion.div>
+        {/* Product Image or Icon */}
+        {firstImage ? (
+          <motion.img
+            src={firstImage}
+            alt={title}
+            className="w-full h-full object-cover"
+            whileHover={{ scale: 1.1 }}
+            transition={{ duration: 0.3 }}
+          />
+        ) : (
+          <motion.div 
+            className="absolute inset-0 flex items-center justify-center text-indigo-400 dark:text-gray-600"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <i className="fa-solid fa-bag-shopping text-4xl opacity-60" />
+          </motion.div>
+        )}
         
         {/* Shop Now Overlay */}
         <motion.div 

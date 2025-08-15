@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useAppContext } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
 
 interface Product {
@@ -9,6 +8,7 @@ interface Product {
   description: string;
   price: number;
   discountPrice?: number;
+  media?: Array<{ url: string; type: string }>;
   images: Array<{ url: string }>;
   category: string;
   subcategory: string;
@@ -24,7 +24,6 @@ interface Product {
 }
 
 const Products: React.FC = () => {
-  const { state } = useAppContext();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -193,7 +192,9 @@ const Products: React.FC = () => {
                    <ProductCard 
                      product={{
                        ...product,
-                       title: product.name // Map name to title for ProductCard
+                       title: product.name, // Map name to title for ProductCard
+                       media: product.media, // Pass media array
+                       images: product.images // Pass images array for backward compatibility
                      }} 
                      onAddToCart={handleAddToCart}
                    />

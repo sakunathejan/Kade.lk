@@ -15,19 +15,19 @@ const {
 } = require('../controllers/productController');
 const { protect, authorize, isApprovedSeller } = require('../middleware/auth');
 
-// Configure multer for file uploads
+// Configure multer for media uploads (images and videos)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit for videos
     files: 10 // Maximum 10 files
   },
   fileFilter: (req, file, cb) => {
-    // Check file type
-    if (file.mimetype.startsWith('image/')) {
+    // Check file type - allow both images and videos
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error('Only image and video files are allowed'), false);
     }
   }
 });
@@ -36,7 +36,7 @@ const router = express.Router();
 
 router.route('/')
   .get(getProducts)
-  .post(protect, isApprovedSeller, createProduct);
+  .post(protect, isApprovedSeller, upload.array('media', 10), createProduct);
 
 router.route('/categories')
   .get(getCategories);
@@ -47,15 +47,15 @@ router.route('/seller/:sellerId')
 // Super Admin routes
 router.route('/super-admin')
   .get(protect, authorize('superadmin'), getAllProductsSuperAdmin)
-  .post(protect, authorize('superadmin'), upload.array('images', 10), createProductSuperAdmin);
+  .post(protect, authorize('superadmin'), upload.array('media', 10), createProductSuperAdmin);
 
 router.route('/:id/super-admin')
-  .put(protect, authorize('superadmin'), upload.array('images', 10), updateProductSuperAdmin)
+  .put(protect, authorize('superadmin'), upload.array('media', 10), updateProductSuperAdmin)
   .delete(protect, authorize('superadmin'), deleteProductSuperAdmin);
 
 router.route('/:id')
   .get(getProduct)
-  .put(protect, isApprovedSeller, updateProduct)
+  .put(protect, isApprovedSeller, upload.array('media', 10), updateProduct)
   .delete(protect, isApprovedSeller, deleteProduct);
 
 module.exports = router;

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ImageFile } from '../../services/imageService';
-import ImageUpload from '../ui/ImageUpload';
+import MediaUpload from '../ui/MediaUpload';
 import { useAppContext } from '../../context/AppContext';
+
+interface MediaFile {
+  file: File;
+  preview: string;
+  id: string;
+  type: 'image' | 'video';
+}
 
 interface Product {
   _id: string;
@@ -12,7 +18,8 @@ interface Product {
   category: string;
   subcategory?: string;
   stock: number;
-  images: Array<{ url: string }>;
+  media?: Array<{ url: string; type: string }>;
+  images?: Array<{ url: string }>; // Keep for backward compatibility
   seller: { name: string; _id?: string };
   ratings: number;
   isActive: boolean;
@@ -23,9 +30,7 @@ const ProductManagement: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [selectedImages, setSelectedImages] = useState<ImageFile[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<MediaFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Form state for creating/editing products
@@ -98,8 +103,8 @@ const ProductManagement: React.FC = () => {
       return;
     }
 
-    if (selectedImages.length === 0) {
-      alert('Please select at least one image');
+    if (selectedMedia.length === 0) {
+      alert('Please select at least one image or video');
       return;
     }
 
@@ -120,8 +125,8 @@ const ProductManagement: React.FC = () => {
       formData.append('seller', state.user?.id || '');
       
       // Append images
-      selectedImages.forEach((image, index) => {
-        formData.append('images', image.file);
+      selectedMedia.forEach((media, index) => {
+        formData.append('media', media.file);
       });
 
       const createResponse = await fetch('/api/products/super-admin', {
@@ -137,8 +142,6 @@ const ProductManagement: React.FC = () => {
         throw new Error('Failed to create product');
       }
 
-      const createdProduct = await createResponse.json();
-
       // Reset form and close modal
       setProductForm({
         name: '',
@@ -148,7 +151,7 @@ const ProductManagement: React.FC = () => {
         subcategory: '',
         stock: ''
       });
-      setSelectedImages([]);
+      setSelectedMedia([]);
       setShowCreateModal(false);
       loadProducts();
 
@@ -162,77 +165,8 @@ const ProductManagement: React.FC = () => {
   };
 
   const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      description: product.description,
-      price: product.price.toString(),
-      category: product.category,
-      subcategory: product.subcategory || '',
-      stock: product.stock.toString()
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editingProduct) return;
-
-    setUploading(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Create FormData for multipart/form-data
-      const formData = new FormData();
-      formData.append('name', productForm.name);
-      formData.append('description', productForm.description);
-      formData.append('price', productForm.price);
-      formData.append('category', productForm.category);
-      formData.append('subcategory', productForm.subcategory);
-      formData.append('stock', productForm.stock);
-      formData.append('seller', state.user?.id || '');
-
-      // Append new images if any
-      if (selectedImages.length > 0) {
-        selectedImages.forEach((image, index) => {
-          formData.append('images', image.file);
-        });
-      }
-
-      const response = await fetch(`/api/products/${editingProduct._id}/super-admin`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData, let browser set it
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        setShowEditModal(false);
-        setEditingProduct(null);
-        setSelectedImages([]);
-        setProductForm({
-          name: '',
-          description: '',
-          price: '',
-          category: '',
-          subcategory: '',
-          stock: ''
-        });
-        loadProducts();
-        alert('Product updated successfully!');
-      } else {
-        throw new Error('Failed to update product');
-      }
-    } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Failed to update product. Please try again.');
-    } finally {
-      setUploading(false);
-    }
+    // Edit functionality removed for now
+    console.log('Edit product:', product);
   };
 
   const resetForm = () => {
@@ -244,7 +178,7 @@ const ProductManagement: React.FC = () => {
       subcategory: '',
       stock: ''
     });
-    setSelectedImages([]);
+    setSelectedMedia([]);
   };
 
   if (loading) {
@@ -293,7 +227,7 @@ const ProductManagement: React.FC = () => {
             >
               {/* Product Image */}
               <div className="bg-gray-200 dark:bg-gray-700">
-                {product.images.length > 0 ? (
+                {product.images && product.images.length > 0 ? (
                   <img
                     src={product.images[0].url}
                     alt={product.name}
@@ -503,12 +437,13 @@ const ProductManagement: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Product Images *
+                    Product Media (Images & Videos) *
                   </label>
-                  <ImageUpload
-                    images={selectedImages}
-                    onImagesChange={setSelectedImages}
-                    maxImages={10}
+                  <MediaUpload
+                    media={selectedMedia}
+                    onMediaChange={setSelectedMedia}
+                    maxFiles={10}
+                    acceptedTypes={['image', 'video']}
                   />
                 </div>
 

@@ -13,7 +13,6 @@ import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import ChangePassword from './components/auth/ChangePassword';
 
 function App() {
   return (
