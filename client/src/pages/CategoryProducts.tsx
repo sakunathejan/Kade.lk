@@ -3,7 +3,7 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
 import { api } from '../services/http';
-import { categoriesData, getSubcategories } from '../utils/categories';
+import { getSubcategories } from '../utils/categories';
 
 interface Product {
   _id: string;

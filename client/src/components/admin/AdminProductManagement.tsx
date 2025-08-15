@@ -4,12 +4,9 @@ import {
   PlusIcon, 
   PencilIcon, 
   TrashIcon, 
-  EyeIcon, 
-  CheckIcon, 
-  XMarkIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
-  CloudArrowUpIcon
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/http';
 import { categoriesData, getSubcategories } from '../../utils/categories';
@@ -339,7 +336,7 @@ const AdminProductManagement: React.FC = () => {
                           />
                         ) : (
                           <div className="h-12 w-12 rounded-lg bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                            <CloudArrowUpIcon className="w-6 h-6 text-gray-400" />
+                            <ChevronUpIcon className="w-6 h-6 text-gray-400" />
                           </div>
                         )}
                       </div>
@@ -404,14 +401,14 @@ const AdminProductManagement: React.FC = () => {
                             className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
                             title="Approve Product"
                           >
-                            <CheckIcon className="w-4 h-4" />
+                            <ChevronUpIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleRejectProduct(product._id)}
                             className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                             title="Reject Product"
                           >
-                            <XMarkIcon className="w-4 h-4" />
+                            <ChevronDownIcon className="w-4 h-4" />
                           </button>
                         </>
                       )}

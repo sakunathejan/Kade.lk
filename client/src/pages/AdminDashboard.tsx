@@ -1,26 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAppContext } from '../context/AppContext';
-import { api } from '../services/http';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   ChartBarIcon, 
-  UsersIcon, 
-  CubeIcon, 
-  ShoppingCartIcon, 
-  TagIcon, 
-  EnvelopeIcon, 
-  ChartPieIcon, 
+  UsersIcon,
+  CubeIcon,
+  ShoppingCartIcon,
+  TagIcon,
+  EnvelopeIcon,
+  ChartPieIcon,
   Cog6ToothIcon,
   BellIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
   PlusIcon,
-  PencilIcon,
-  TrashIcon,
+  MagnifyingGlassIcon,
   EyeIcon,
   CheckIcon,
-  XMarkIcon
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
+import { api } from '../services/http';
+import { useAppContext } from '../context/AppContext';
 
 // Import management components
 import OrderManagement from '../components/admin/OrderManagement';
@@ -52,18 +50,6 @@ interface User {
   lastLogin?: string;
 }
 
-interface Product {
-  _id: string;
-  name: string;
-  price: number;
-  category: string;
-  subcategory: string;
-  stock: number;
-  isActive: boolean;
-  seller: { name: string; _id: string };
-  createdAt: string;
-}
-
 interface Order {
   _id: string;
   orderNumber: string;
@@ -74,51 +60,34 @@ interface Order {
   items: Array<{ product: string; quantity: number; price: number }>;
 }
 
-interface Category {
-  _id: string;
-  name: string;
-  icon: string;
-  subcategories: string[];
-  isActive: boolean;
-}
-
 const AdminDashboard: React.FC = () => {
   const { state } = useAppContext();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'products' | 'orders' | 'categories' | 'emails' | 'reports' | 'settings'>('overview');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
   // Load dashboard data
-  const loadDashboardData = useCallback(async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
       
       // Load all data in parallel
-      const [usersRes, productsRes, ordersRes, categoriesRes] = await Promise.all([
+      const [usersRes, productsRes, ordersRes] = await Promise.all([
         api.get('/api/users'),
         api.get('/api/products'),
-        api.get('/api/orders'),
-        api.get('/api/categories')
+        api.get('/api/orders')
       ]);
 
       const usersData = usersRes.data.data || [];
       const productsData = productsRes.data.data || [];
       const ordersData = ordersRes.data.data || [];
-      const categoriesData = categoriesRes.data.data || [];
 
       setUsers(usersData);
-      setProducts(productsData);
-      setOrders(ordersData);
-      setCategories(categoriesData);
 
       // Calculate stats
       const currentMonth = new Date().getMonth();
@@ -161,11 +130,11 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     loadDashboardData();
-  }, [loadDashboardData]);
+  }, []);
 
   // Filter and pagination logic
   const filteredUsers = users.filter(user => {
@@ -173,20 +142,6 @@ const AdminDashboard: React.FC = () => {
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
-  });
-
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || product.isActive === (filterStatus === 'active');
-    return matchesSearch && matchesStatus;
-  });
-
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
-    return matchesSearch && matchesStatus;
   });
 
   // Pagination
