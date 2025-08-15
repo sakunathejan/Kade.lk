@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { toggleTheme, getCurrentTheme } from '../theme';
 
 const ThemeToggle: React.FC = () => {
@@ -14,22 +15,10 @@ const ThemeToggle: React.FC = () => {
     // Initial theme state
     updateThemeState();
 
-    // Listen for theme changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && 
-            (mutation.attributeName === 'data-theme' || mutation.attributeName === 'class')) {
-          updateThemeState();
-        }
-      });
-    });
+    // Listen for theme changes by checking periodically
+    const interval = setInterval(updateThemeState, 100);
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme', 'class']
-    });
-
-    return () => observer.disconnect();
+    return () => clearInterval(interval);
   }, []);
 
   const onToggle = () => {
@@ -38,24 +27,29 @@ const ThemeToggle: React.FC = () => {
   };
 
   return (
-    <button
+    <motion.button
       onClick={onToggle}
       aria-label="Toggle theme"
       title="Toggle theme"
-      className={`relative inline-flex h-8 w-14 items-center rounded-full border transition-all duration-300 ease-in-out
-        ${isDark ? 'bg-[color:var(--color-surface)] border-[color:var(--color-border)]' : 'bg-[color:var(--color-surface)] border-[color:var(--color-border)]'}`}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="relative inline-flex h-8 w-14 items-center rounded-full bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 transition-all duration-300 ease-in-out hover:shadow-lg"
     >
-      <span
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow transform transition-all duration-300 ease-in-out
-          ${isDark ? 'translate-x-6' : 'translate-x-1'}`}
+      <motion.span
+        layout
+        animate={{ x: isDark ? 24 : 4 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow"
       >
-        {isDark ? (
-          <i className="fa-solid fa-moon text-[color:var(--color-text)]" />
-        ) : (
-          <i className="fa-solid fa-sun text-[color:var(--color-primary)]" />
-        )}
-      </span>
-    </button>
+        <motion.i 
+          key={isDark ? 'moon' : 'sun'}
+          initial={{ rotate: -180, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className={`fa-solid ${isDark ? 'fa-moon text-gray-700' : 'fa-sun text-yellow-500'}`}
+        />
+      </motion.span>
+    </motion.button>
   );
 };
 

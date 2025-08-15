@@ -24,6 +24,8 @@ const categoryRoutes = require('./routes/categories');
 const paymentRoutes = require('./routes/payment');
 const subscriptionRoutes = require('./routes/subscriptions');
 const adminRoutes = require('./routes/admin');
+const recommendationsRoutes = require('./routes/recommendations');
+const storesRoutes = require('./routes/stores');
 
 const app = express();
 
@@ -65,6 +67,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/stores', storesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

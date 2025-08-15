@@ -180,7 +180,85 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
-// @desc    Delete user
+// @desc    Deactivate user (soft delete)
+// @route   PUT /api/users/:id/deactivate
+// @access  Private (SuperAdmin only)
+exports.deactivateUser = async (req, res, next) => {
+  try {
+    console.log('🔍 Backend: Deactivate user request received for ID:', req.params.id);
+    console.log('🔍 Backend: Request user:', req.user);
+    
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      console.log('🔍 Backend: User not found');
+      return next(new ErrorResponse(`User not found with id of ${req.params.id}`, 404));
+    }
+
+    console.log('🔍 Backend: Found user:', { id: user._id, name: user.name, role: user.role, isActive: user.isActive });
+
+    // Prevent superadmin deactivation
+    if (user.role === 'superadmin') {
+      console.log('🔍 Backend: Cannot deactivate superadmin');
+      return next(new ErrorResponse('Cannot deactivate super admin account', 403));
+    }
+
+    // Soft delete - just deactivate
+    user.isActive = false;
+    await user.save();
+
+    console.log('🔍 Backend: User deactivated successfully');
+
+    res.status(200).json({
+      success: true,
+      message: 'User deactivated successfully'
+    });
+  } catch (error) {
+    console.error('🔍 Backend: Deactivate error:', error);
+    next(error);
+  }
+};
+
+// @desc    Activate user
+// @route   PUT /api/users/:id/activate
+// @access  Private (SuperAdmin only)
+exports.activateUser = async (req, res, next) => {
+  try {
+    console.log('🔍 Backend: Activate user request received for ID:', req.params.id);
+    console.log('🔍 Backend: Request user:', req.user);
+    
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      console.log('🔍 Backend: User not found');
+      return next(new ErrorResponse(`User not found with id of ${req.params.id}`, 404));
+    }
+
+    console.log('🔍 Backend: Found user:', { id: user._id, name: user.name, role: user.role, isActive: user.isActive });
+
+    // Prevent superadmin activation (they should always be active)
+    if (user.role === 'superadmin') {
+      console.log('🔍 Backend: Cannot activate superadmin');
+      return next(new ErrorResponse('Super admin accounts are always active', 403));
+    }
+
+    // Activate user
+    user.isActive = true;
+    await user.save();
+
+    console.log('🔍 Backend: User activated successfully');
+
+    res.status(200).json({
+      success: true,
+      message: 'User activated successfully'
+    });
+  } catch (error) {
+    console.error('🔍 Backend: Activate error:', error);
+    next(error);
+  }
+};
+
+// @desc    Delete user (soft delete - deactivate) - keeping for backward compatibility
 // @route   DELETE /api/users/:id
 // @access  Private (SuperAdmin only)
 exports.deleteUser = async (req, res, next) => {
@@ -203,6 +281,34 @@ exports.deleteUser = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'User deactivated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Hard delete user (permanently remove from database)
+// @route   DELETE /api/users/:id/hard-delete
+// @access  Private (SuperAdmin only)
+exports.hardDeleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return next(new ErrorResponse(`User not found with id of ${req.params.id}`, 404));
+    }
+
+    // Prevent superadmin deletion
+    if (user.role === 'superadmin') {
+      return next(new ErrorResponse('Cannot delete super admin account', 403));
+    }
+
+    // Hard delete - permanently remove from database
+    await User.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'User permanently deleted from database'
     });
   } catch (error) {
     next(error);

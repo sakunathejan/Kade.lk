@@ -1,30 +1,41 @@
 const Product = require('../models/Product');
 const ErrorResponse = require('../utils/errorResponse');
+const ImageService = require('../services/imageService');
 
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
+    console.log('getProducts called with query:', req.query);
+    
     let query = Product.find({ isActive: true });
 
-    // Copy req.query
+    // Handle category filtering explicitly
+    if (req.query.category && req.query.category !== 'all') {
+      console.log('Filtering by category:', req.query.category);
+      query = query.where('category', req.query.category);
+    }
+
+    // Copy req.query for other filters
     const reqQuery = { ...req.query };
 
     // Fields to exclude
-    const removeFields = ['select', 'sort', 'page', 'limit'];
+    const removeFields = ['select', 'sort', 'page', 'limit', 'category'];
 
     // Loop over removeFields and delete them from reqQuery
     removeFields.forEach(param => delete reqQuery[param]);
 
-    // Create query string
+    // Create query string for other filters
     let queryStr = JSON.stringify(reqQuery);
     
     // Create operators ($gt, $gte, etc)
     queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
-    // Finding resource
-    query = query.find(JSON.parse(queryStr));
+    // Apply other filters if they exist
+    if (Object.keys(JSON.parse(queryStr)).length > 0) {
+      query = query.find(JSON.parse(queryStr));
+    }
 
     // Select Fields
     if (req.query.select) {
@@ -45,12 +56,19 @@ exports.getProducts = async (req, res, next) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const total = await Product.countDocuments(JSON.parse(queryStr));
+    // Get total count with the same filters
+    const countQuery = Product.find({ isActive: true });
+    if (req.query.category && req.query.category !== 'all') {
+      countQuery.where('category', req.query.category);
+    }
+    const total = await countQuery.countDocuments();
 
     query = query.skip(startIndex).limit(limit);
 
     // Executing query
+    console.log('Final query:', query.getQuery());
     const products = await query.populate('seller', 'name email');
+    console.log('Found products:', products.length);
 
     // Pagination result
     const pagination = {};
@@ -123,6 +141,75 @@ exports.createProduct = async (req, res, next) => {
   }
 };
 
+// @desc    Create new product (Super Admin)
+// @route   POST /api/products/super-admin
+// @access  Private (Super Admin)
+exports.createProductSuperAdmin = async (req, res, next) => {
+  try {
+    // Super admin can create products for any seller
+    if (!req.body.seller) {
+      return next(new ErrorResponse('Seller ID is required', 400));
+    }
+
+    // Create product first
+    const productData = {
+      name: req.body.name,
+      description: req.body.description,
+      price: parseFloat(req.body.price),
+      category: req.body.category,
+      subcategory: req.body.subcategory,
+      stock: parseInt(req.body.stock),
+      seller: req.body.seller,
+      images: [] // Will be populated after image upload
+    };
+
+    const product = await Product.create(productData);
+
+    // Handle image uploads if files are present
+    if (req.files && req.files.length > 0) {
+      try {
+        // Validate files
+        for (const file of req.files) {
+          const validation = ImageService.validateImage(file);
+          if (!validation.valid) {
+            return next(new ErrorResponse(validation.error, 400));
+          }
+        }
+
+        // Upload images to Supabase
+        const uploadResults = await ImageService.uploadMultipleImages(req.files, product._id);
+
+        // Check upload results
+        const failedUploads = uploadResults.filter(result => !result.success);
+        if (failedUploads.length > 0) {
+          console.warn('Some images failed to upload:', failedUploads);
+        }
+
+        // Update product with image URLs
+        const imageUrls = uploadResults
+          .filter(result => result.success)
+          .map(result => ({ url: result.url }));
+
+        if (imageUrls.length > 0) {
+          product.images = imageUrls;
+          await product.save();
+        }
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError);
+        // Don't fail the entire request if image upload fails
+        // Product is still created, just without images
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update product
 // @route   PUT /api/products/:id
 // @access  Private (Seller)
@@ -139,6 +226,66 @@ exports.updateProduct = async (req, res, next) => {
       return next(new ErrorResponse(`User ${req.user.id} is not authorized to update this product`, 403));
     }
 
+    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update product (Super Admin)
+// @route   PUT /api/products/:id/super-admin
+// @access  Private (Super Admin)
+exports.updateProductSuperAdmin = async (req, res, next) => {
+  try {
+    let product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return next(new ErrorResponse(`Product not found with id of ${req.params.id}`, 404));
+    }
+
+    // Handle image uploads if new files are present
+    if (req.files && req.files.length > 0) {
+      try {
+        // Validate files
+        for (const file of req.files) {
+          const validation = ImageService.validateImage(file);
+          if (!validation.valid) {
+            return next(new ErrorResponse(validation.error, 400));
+          }
+        }
+
+        // Upload new images to Supabase
+        const uploadResults = await ImageService.uploadMultipleImages(req.files, product._id);
+
+        // Check upload results
+        const failedUploads = uploadResults.filter(result => !result.success);
+        if (failedUploads.length > 0) {
+          console.warn('Some images failed to upload:', failedUploads);
+        }
+
+        // Get new image URLs
+        const newImageUrls = uploadResults
+          .filter(result => result.success)
+          .map(result => ({ url: result.url }));
+
+        // Combine with existing images
+        const existingImages = product.images || [];
+        req.body.images = [...existingImages, ...newImageUrls];
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError);
+        return next(new ErrorResponse('Failed to upload images', 500));
+      }
+    }
+
+    // Super admin can update any product
     product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
@@ -180,6 +327,40 @@ exports.deleteProduct = async (req, res, next) => {
   }
 };
 
+// @desc    Delete product (Super Admin)
+// @route   DELETE /api/products/:id/super-admin
+// @access  Private (Super Admin)
+exports.deleteProductSuperAdmin = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return next(new ErrorResponse(`Product not found with id of ${req.params.id}`, 404));
+    }
+
+    // Delete associated images from Supabase if they exist
+    if (product.images && product.images.length > 0) {
+      try {
+        const imageUrls = product.images.map(img => img.url);
+        await ImageService.deleteMultipleImages(imageUrls);
+      } catch (deleteError) {
+        console.error('Failed to delete images from Supabase:', deleteError);
+        // Continue with product deletion even if image deletion fails
+      }
+    }
+
+    // Super admin can delete any product
+    await product.remove();
+
+    res.status(200).json({
+      success: true,
+      data: {}
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get products by seller
 // @route   GET /api/products/seller/:sellerId
 // @access  Public
@@ -194,6 +375,104 @@ exports.getProductsBySeller = async (req, res, next) => {
       success: true,
       count: products.length,
       data: products
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all products (Super Admin)
+// @route   GET /api/products/super-admin
+// @access  Private (Super Admin)
+exports.getAllProductsSuperAdmin = async (req, res, next) => {
+  try {
+    let query = Product.find();
+
+    // Copy req.query
+    const reqQuery = { ...req.query };
+
+    // Fields to exclude
+    const removeFields = ['select', 'sort', 'page', 'limit'];
+
+    // Loop over removeFields and delete them from reqQuery
+    removeFields.forEach(param => delete reqQuery[param]);
+
+    // Create query string
+    let queryStr = JSON.stringify(reqQuery);
+    
+    // Create operators ($gt, $gte, etc)
+    queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+
+    // Finding resource
+    query = query.find(JSON.parse(queryStr));
+
+    // Select Fields
+    if (req.query.select) {
+      const fields = req.query.select.split(',').join(' ');
+      query = query.select(fields);
+    }
+
+    // Sort
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' ');
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort('-createdAt');
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const total = await Product.countDocuments(JSON.parse(queryStr));
+
+    query = query.skip(startIndex).limit(limit);
+
+    // Executing query
+    const products = await query.populate('seller', 'name email');
+
+    // Pagination result
+    const pagination = {};
+
+    if (endIndex < total) {
+      pagination.next = {
+        page: page + 1,
+        limit
+      };
+    }
+
+    if (startIndex > 0) {
+      pagination.prev = {
+        page: page - 1,
+        limit
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      pagination,
+      total,
+      data: products
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all unique categories
+// @route   GET /api/products/categories
+// @access  Public
+exports.getCategories = async (req, res, next) => {
+  try {
+    const categories = await Product.distinct('category', { isActive: true });
+    console.log('Available categories:', categories);
+    
+    res.status(200).json({
+      success: true,
+      count: categories.length,
+      data: categories
     });
   } catch (error) {
     next(error);

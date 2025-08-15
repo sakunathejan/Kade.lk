@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 
 const Login: React.FC = () => {
-  const { login } = useAppContext();
+  const { state, login } = useAppContext();
   const navigate = useNavigate();
   const [loginType, setLoginType] = useState<'email' | 'userId'>('email');
   const [formData, setFormData] = useState({
@@ -16,6 +16,27 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (!state.isInitializing && state.isAuthenticated) {
+      navigate('/');
+    }
+  }, [state.isAuthenticated, state.isInitializing, navigate]);
+
+  // Show loading while checking authentication
+  if (state.isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (state.isAuthenticated) {
+    return null;
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({

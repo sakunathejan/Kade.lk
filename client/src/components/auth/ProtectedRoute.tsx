@@ -11,6 +11,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requireRole }) => {
   const { state } = useAppContext();
   const [showChangePassword, setShowChangePassword] = useState(false);
 
+  // Show loading while initializing authentication
+  if (state.isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   // Check if user is authenticated
   if (!state.isAuthenticated) {
     return <Navigate to="/login" replace />;

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { api } from '../services/http';
 
-interface User {
-  _id: string;
+export interface User {
+  id: string; // Backend returns 'id' not '_id'
   userId: string; // Generated user ID for admin/seller, email for customer
   email: string;
   name: string;
@@ -25,6 +25,7 @@ interface AppState {
   user: User | null;
   cart: CartItem[];
   isLoading: boolean;
+  isInitializing: boolean;
   searchQuery: string;
   selectedCategory: string;
   isAuthenticated: boolean;
@@ -33,6 +34,7 @@ interface AppState {
 type AppAction =
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_INITIALIZING'; payload: boolean }
   | { type: 'ADD_TO_CART'; payload: any }
   | { type: 'REMOVE_FROM_CART'; payload: string }
   | { type: 'CLEAR_CART' }
@@ -45,6 +47,7 @@ const initialState: AppState = {
   user: null,
   cart: [],
   isLoading: false,
+  isInitializing: true,
   searchQuery: '',
   selectedCategory: 'all',
   isAuthenticated: false,
@@ -56,6 +59,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, user: action.payload, isAuthenticated: !!action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
+    case 'SET_INITIALIZING':
+      return { ...state, isInitializing: action.payload };
     case 'ADD_TO_CART':
       const existingItem = state.cart.find(item => item._id === action.payload._id);
       if (existingItem) {
@@ -97,6 +102,9 @@ interface AppContextType {
   registerCustomer: (customerData: CustomerRegistrationData) => Promise<void>;
   updateUser: (userId: string, userData: Partial<User>) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
+  activateUser: (userId: string) => Promise<void>;
+  deactivateUser: (userId: string) => Promise<void>;
+  hardDeleteUser: (userId: string) => Promise<void>;
   getUsers: (role?: string) => Promise<User[]>;
   checkAuthStatus: () => Promise<void>;
 }
@@ -124,7 +132,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Check authentication status on app load
   useEffect(() => {
-    checkAuthStatus();
+    // Add a small delay to prevent rapid successive calls
+    const timer = setTimeout(() => {
+      checkAuthStatus();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const checkAuthStatus = async () => {
@@ -133,11 +146,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const res = await api.get('/auth/me');
         dispatch({ type: 'SET_USER', payload: res.data.user });
-      } catch (error) {
+      } catch (error: any) {
+        // Handle 429 (Too Many Requests) gracefully
+        if (error.response?.status === 429) {
+          console.warn('Rate limited, will retry later');
+          // Mark as initialized even on rate limit to prevent infinite loops
+          dispatch({ type: 'SET_INITIALIZING', payload: false });
+          return;
+        }
         localStorage.removeItem('token');
         dispatch({ type: 'SET_USER', payload: null });
       }
     }
+    // Mark initialization as complete
+    dispatch({ type: 'SET_INITIALIZING', payload: false });
   };
 
   const login = async (userId: string, password: string) => {
@@ -162,6 +184,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = () => {
     localStorage.removeItem('token');
     dispatch({ type: 'LOGOUT' });
+    // Reset initialization state when logging out
+    dispatch({ type: 'SET_INITIALIZING', payload: false });
   };
 
   const addToCart = (product: any) => {
@@ -214,6 +238,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const activateUser = async (userId: string) => {
+    try {
+      console.log('🔍 Activating user:', userId);
+      const res = await api.put(`/users/${userId}/activate`);
+      console.log('🔍 Activate response:', res);
+      return res.data;
+    } catch (error: any) {
+      console.error('🔍 Activate error:', error);
+      console.error('🔍 Error response:', error.response);
+      throw new Error(error.response?.data?.message || 'Failed to activate user');
+    }
+  };
+
+  const deactivateUser = async (userId: string) => {
+    try {
+      console.log('🔍 Deactivating user:', userId);
+      const res = await api.put(`/users/${userId}/deactivate`);
+      console.log('🔍 Deactivate response:', res);
+      return res.data;
+    } catch (error: any) {
+      console.error('🔍 Deactivate error:', error);
+      console.error('🔍 Error response:', error.response);
+      throw new Error(error.response?.data?.message || 'Failed to deactivate user');
+    }
+  };
+
+  const hardDeleteUser = async (userId: string) => {
+    try {
+      const res = await api.delete(`/users/${userId}/hard-delete`);
+      return res.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Failed to permanently delete user');
+    }
+  };
+
   const getUsers = async (role?: string) => {
     try {
       const params = role ? { role } : {};
@@ -236,6 +295,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       registerCustomer,
       updateUser,
       deleteUser,
+      activateUser,
+      deactivateUser,
+      hardDeleteUser,
       getUsers,
       checkAuthStatus,
     }}>

@@ -5,6 +5,9 @@ const {
   createUser, 
   updateUser, 
   deleteUser, 
+  deactivateUser,
+  activateUser,
+  hardDeleteUser,
   resetUserPassword,
   getUserStats 
 } = require('../controllers/userController');
@@ -24,13 +27,28 @@ router.get('/', authorize('admin', 'superadmin'), getUsers);
 // Create user (SuperAdmin only)
 router.post('/', authorize('superadmin'), createUser);
 
-// User management routes (Admin/SuperAdmin)
+// Reset user password (SuperAdmin only)
+router.put('/:id/reset-password', authorize('superadmin'), resetUserPassword);
+
+// Activate user (SuperAdmin only)
+router.put('/:id/activate', authorize('superadmin'), (req, res, next) => {
+  console.log('🔍 Route: Activate route hit for ID:', req.params.id);
+  next();
+}, activateUser);
+
+// Deactivate user (SuperAdmin only)
+router.put('/:id/deactivate', authorize('superadmin'), (req, res, next) => {
+  console.log('🔍 Route: Deactivate route hit for ID:', req.params.id);
+  next();
+}, deactivateUser);
+
+// Hard delete user (SuperAdmin only)
+router.delete('/:id/hard-delete', authorize('superadmin'), hardDeleteUser);
+
+// User management routes (Admin/SuperAdmin) - must be last to avoid conflicts
 router.route('/:id')
   .get(authorize('admin', 'superadmin'), getUser)
   .put(authorize('admin', 'superadmin'), updateUser)
   .delete(authorize('superadmin'), deleteUser);
-
-// Reset user password (SuperAdmin only)
-router.put('/:id/reset-password', authorize('superadmin'), resetUserPassword);
 
 module.exports = router;
