@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext, User } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
-import ProductManagement from '../components/admin/ProductManagement';
+import ProductManagement from '../components/admin/AdminProductManagement';
 import { api } from '../services/http';
 
 const SuperAdminDashboard: React.FC = () => {

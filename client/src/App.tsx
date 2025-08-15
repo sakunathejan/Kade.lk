@@ -15,6 +15,12 @@ import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import NewArrivals from './pages/NewArrivals';
+import BestSellers from './pages/BestSellers';
+import Deals from './pages/Deals';
+import Help from './pages/Help';
+import Contact from './pages/Contact';
+import About from './pages/About';
 
 function App() {
   return (
@@ -33,6 +39,12 @@ function App() {
             <Route path="/categories" element={<Categories />} />
             <Route path="/products/:id" element={<ProductDetails />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/new-arrivals" element={<NewArrivals />} />
+            <Route path="/best-sellers" element={<BestSellers />} />
+            <Route path="/deals" element={<Deals />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/about" element={<About />} />
             
             {/* Protected Routes */}
             <Route element={<ProtectedRoute requireRole="admin" />}>

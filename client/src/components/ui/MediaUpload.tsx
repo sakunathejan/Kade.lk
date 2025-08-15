@@ -9,22 +9,32 @@ interface MediaFile {
 }
 
 interface MediaUploadProps {
-  media: MediaFile[];
-  onMediaChange: (media: MediaFile[]) => void;
+  media?: MediaFile[];
+  onMediaChange?: (media: MediaFile[]) => void;
+  selectedMedia?: MediaFile[];
+  setSelectedMedia?: React.Dispatch<React.SetStateAction<MediaFile[]>>;
   maxFiles?: number;
   className?: string;
   acceptedTypes?: ('image' | 'video')[];
+  multiple?: boolean;
 }
 
 const MediaUpload: React.FC<MediaUploadProps> = ({
   media,
   onMediaChange,
+  selectedMedia = [],
+  setSelectedMedia,
   maxFiles = 10,
   className = '',
-  acceptedTypes = ['image', 'video']
+  acceptedTypes = ['image', 'video'],
+  multiple = false
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use selectedMedia if media is not provided (for backward compatibility)
+  const currentMedia = media || selectedMedia;
+  const handleMediaChange = onMediaChange || setSelectedMedia;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -50,7 +60,9 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
   }, []);
 
   const handleFiles = useCallback((files: File[]) => {
-    if (media.length + files.length > maxFiles) {
+    if (!handleMediaChange) return;
+    
+    if (currentMedia.length + files.length > maxFiles) {
       alert(`Maximum ${maxFiles} files allowed`);
       return;
     }
@@ -76,8 +88,8 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
         type: file.type.startsWith('image/') ? 'image' : 'video'
       }));
 
-    onMediaChange([...media, ...newMedia]);
-  }, [media, maxFiles, onMediaChange, acceptedTypes, createPreviewUrl]);
+    handleMediaChange([...currentMedia, ...newMedia]);
+  }, [currentMedia, maxFiles, handleMediaChange, acceptedTypes, createPreviewUrl]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -93,14 +105,16 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
   }, [handleFiles]);
 
   const removeMedia = useCallback((mediaId: string) => {
-    const mediaToRemove = media.find(m => m.id === mediaId);
+    const mediaToRemove = currentMedia.find(m => m.id === mediaId);
     if (mediaToRemove) {
       revokePreviewUrl(mediaToRemove.preview);
     }
     
-    const updatedMedia = media.filter(m => m.id !== mediaId);
-    onMediaChange(updatedMedia);
-  }, [media, onMediaChange, revokePreviewUrl]);
+    const updatedMedia = currentMedia.filter(m => m.id !== mediaId);
+    if (handleMediaChange) {
+      handleMediaChange(updatedMedia);
+    }
+  }, [currentMedia, handleMediaChange, revokePreviewUrl]);
 
   const openFileDialog = useCallback(() => {
     fileInputRef.current?.click();
@@ -144,7 +158,7 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          multiple
+          multiple={multiple}
           accept={getAcceptedMimeTypes()}
           onChange={handleFileSelect}
           className="hidden"
@@ -182,7 +196,7 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
               }
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              {media.length}/{maxFiles} files selected
+              {currentMedia.length}/{maxFiles} files selected
             </p>
           </div>
           
@@ -200,14 +214,14 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
       </div>
 
       {/* Media Previews */}
-      {media.length > 0 && (
+      {currentMedia.length > 0 && (
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-            Selected Files ({media.length})
+            Selected Files ({currentMedia.length})
           </h4>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {media.map((file, index) => (
+            {currentMedia.map((file, index) => (
               <motion.div
                 key={file.id}
                 initial={{ opacity: 0, scale: 0.8 }}
