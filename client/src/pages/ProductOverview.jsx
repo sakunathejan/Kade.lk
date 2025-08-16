@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
@@ -14,13 +14,11 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
-  ShieldCheckIcon,
   ChevronRightIcon as ChevronRight
 } from '@heroicons/react/24/outline';
 
 const ProductOverview = () => {
   const { id } = useParams(); // Now 'id' parameter handles both ID and slug
-  const navigate = useNavigate();
   const { addToCart } = useAppContext();
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);

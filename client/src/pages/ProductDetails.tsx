@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -15,8 +15,7 @@ import {
   ShareIcon,
   CheckIcon,
   MagnifyingGlassIcon,
-  ArrowPathIcon,
-  ShieldCheckIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 const ProductDetails: React.FC = () => {
