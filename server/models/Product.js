@@ -31,6 +31,12 @@ const productSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Product name cannot exceed 100 characters']
   },
+  slug: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
   description: {
     type: String,
     required: [true, 'Please provide product description'],
@@ -148,8 +154,27 @@ const productSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Function to generate slug from product name
+function generateSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .trim('-'); // Remove leading/trailing hyphens
+}
+
+// Pre-save middleware to generate slug
+productSchema.pre('save', function(next) {
+  if (this.isModified('name') && !this.slug) {
+    this.slug = generateSlug(this.name);
+  }
+  next();
+});
+
 // Indexes for better performance
 productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ slug: 1 }); // Add slug index
 productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ seller: 1 });

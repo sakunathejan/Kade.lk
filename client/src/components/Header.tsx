@@ -41,7 +41,7 @@ const Header: React.FC = () => {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="sticky top-0 z-40 backdrop-blur-xl supports-[backdrop-filter]:bg-[color:var(--color-surface)]/90 bg-[color:var(--color-surface)]/95 dark:supports-[backdrop-filter]:bg-[color:var(--color-surface)]/90 border-b border-[color:var(--color-border)]/50"
+      className="sticky top-0 z-[9998] backdrop-blur-xl supports-[backdrop-filter]:bg-[color:var(--color-surface)]/90 bg-[color:var(--color-surface)]/95 dark:supports-[backdrop-filter]:bg-[color:var(--color-surface)]/90 border-b border-[color:var(--color-border)]/50"
     >
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <motion.div
@@ -202,7 +202,7 @@ const Header: React.FC = () => {
                 
                 {/* Dropdown Menu */}
                 <motion.div 
-                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top scale-95 group-hover:scale-100 z-50 pointer-events-none group-hover:pointer-events-auto"
+                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top scale-95 group-hover:scale-100 z-[9999] pointer-events-none group-hover:pointer-events-auto"
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   whileHover={{ opacity: 1, y: 0, scale: 1 }}
                 >

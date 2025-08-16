@@ -11,7 +11,10 @@ const {
   updateProductSuperAdmin,
   deleteProductSuperAdmin,
   getAllProductsSuperAdmin,
-  getCategories
+  getCategories,
+  getSimilarProducts,
+  getRelatedProducts,
+  getProductBySlug
 } = require('../controllers/productController');
 const { protect, authorize, isApprovedSeller } = require('../middleware/auth');
 const MediaService = require('../services/mediaService');
@@ -63,6 +66,16 @@ router.route('/super-admin')
 router.route('/:id/super-admin')
   .put(protect, authorize('superadmin'), upload.array('media', 10), updateProductSuperAdmin)
   .delete(protect, authorize('superadmin'), deleteProductSuperAdmin);
+
+// Route to get product by slug (MUST come before /:id routes)
+router.route('/slug/:slug')
+  .get(getProductBySlug);
+
+router.route('/:id/similar')
+  .get(getSimilarProducts);
+
+router.route('/:id/related')
+  .get(getRelatedProducts);
 
 router.route('/:id')
   .get(getProduct)

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { api } from '../services/http';
 import { useAppContext } from '../context/AppContext';
 import ProductCard from '../components/ProductCard';
 import { 
@@ -16,109 +14,95 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ChevronRightIcon as ChevronRight
 } from '@heroicons/react/24/outline';
 
-const ProductDetails: React.FC = () => {
-  const { id } = useParams();
+const ProductOverview = () => {
+  const { id } = useParams(); // Now 'id' parameter handles both ID and slug
+  const navigate = useNavigate();
   const { addToCart } = useAppContext();
+  const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('description');
   const [quantity, setQuantity] = useState(1);
 
-  console.log('ProductDetails component loaded with id:', id);
-
   // Fetch product data
-  const { data: productResponse, isLoading, isError } = useQuery({
-    queryKey: ['product', id],
-    queryFn: async () => {
-      console.log('Fetching product with id:', id);
+  useEffect(() => {
+    const fetchProduct = async () => {
       try {
-        const res = await api.get(`/products/${id}`);
-        console.log('Product API response:', res.data);
-        return res.data;
-      } catch (error) {
-        console.error('Error fetching product:', error);
-        throw error;
+        setLoading(true);
+        let apiUrl;
+        
+        // Check if the 'id' parameter looks like a MongoDB ObjectId (24 hex characters)
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+        
+        if (isObjectId) {
+          // Fetch by ID
+          apiUrl = `http://localhost:5000/api/products/${id}`;
+        } else {
+          // Fetch by slug
+          apiUrl = `http://localhost:5000/api/products/slug/${id}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.success) {
+          setProduct(data.data);
+          // Fetch related products
+          await fetchRelatedProducts(data.data);
+        } else {
+          setError('Product not found');
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Failed to load product');
+      } finally {
+        setLoading(false);
       }
-    },
-    enabled: !!id,
-  });
+    };
 
-  // Extract product data from response
-  const product = productResponse?.data || productResponse;
-  console.log('ProductDetails state:', { product, isLoading, isError, productResponse });
-
-  // Fetch related products
-  const { data: relatedResponse } = useQuery({
-    queryKey: ['relatedProducts', id],
-    queryFn: async () => {
+    const fetchRelatedProducts = async (currentProduct) => {
       try {
-        const res = await api.get(`/products/${id}/related`);
-        console.log('Related products response:', res.data);
-        return res.data;
-      } catch (error) {
-        console.error('Error fetching related products:', error);
-        return { data: [] };
+        const productId = currentProduct._id;
+        const response = await fetch(`http://localhost:5000/api/products/${productId}/related`);
+        const data = await response.json();
+        if (data.success) {
+          setRelatedProducts(data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching related products:', err);
       }
-    },
-    enabled: !!id,
-  });
+    };
 
-  const relatedProducts = relatedResponse?.data || relatedResponse || [];
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (isError || !product) {
-    console.log('Rendering error state:', { isError, product, productResponse });
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Product not found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">ID: {id}</p>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Response: {JSON.stringify(productResponse)}</p>
-          <Link to="/products" className="text-primary hover:underline">Back to Products</Link>
-        </div>
-      </div>
-    );
-  }
-
-  const p = product;
-  console.log('Product data:', p);
-
-  // Get images from product
-  const getImages = () => {
-    if (p.media && p.media.length > 0) {
-      return p.media.filter((item: any) => item.type === 'image').map((item: any) => item.url);
+    if (id) {
+      fetchProduct();
     }
-    if (p.images && p.images.length > 0) {
-      return p.images.map((img: any) => img.url || img);
-    }
-    return [];
-  };
+  }, [id]);
 
-  const images = getImages();
-  const hasImages = images.length > 0;
-
+  // Handle image navigation
   const nextImage = () => {
-    setSelectedImageIndex((prev) => (prev + 1) % images.length);
+    if (product?.images?.length > 1) {
+      setSelectedImageIndex((prev) => (prev + 1) % product.images.length);
+    }
   };
 
   const prevImage = () => {
-    setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    if (product?.images?.length > 1) {
+      setSelectedImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+    }
   };
 
-  const formatPrice = (price: number) => {
+  // Utility functions
+  const formatPrice = (price) => {
     return `Rs. ${price?.toLocaleString() || '0'}`;
   };
 
-  const renderStars = (rating: number) => {
+  const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
       <StarIcon
         key={i}
@@ -129,10 +113,42 @@ const ProductDetails: React.FC = () => {
     ));
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+            {error || 'Product not found'}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">ID: {id}</p>
+          <Link 
+            to="/products" 
+            className="inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Back to Products
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const images = product.images || [];
+  const hasImages = images.length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header Section */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-[9997]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Breadcrumb Navigation */}
           <nav className="flex" aria-label="Breadcrumb">
@@ -144,7 +160,7 @@ const ProductDetails: React.FC = () => {
               </li>
               <li>
                 <div className="flex items-center">
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400 mx-2" />
+                  <ChevronRight className="h-4 w-4 text-gray-400 mx-2" />
                   <Link to="/products" className="text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">
                     Products
                   </Link>
@@ -152,8 +168,8 @@ const ProductDetails: React.FC = () => {
               </li>
               <li>
                 <div className="flex items-center">
-                  <ChevronRightIcon className="h-4 w-4 text-gray-400 mx-2" />
-                  <span className="text-gray-500 dark:text-gray-400 font-medium">{p.name || 'Product'}</span>
+                  <ChevronRight className="h-4 w-4 text-gray-400 mx-2" />
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">{product.name}</span>
                 </div>
               </li>
             </ol>
@@ -161,7 +177,7 @@ const ProductDetails: React.FC = () => {
 
           {/* Product Title */}
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-4 leading-tight">
-            {p.name || 'Product Name'}
+            {product.name}
           </h1>
         </div>
       </div>
@@ -178,7 +194,7 @@ const ProductDetails: React.FC = () => {
                   <motion.img
                     key={selectedImageIndex}
                     src={images[selectedImageIndex]}
-                    alt={p.name || 'Product'}
+                    alt={product.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -243,7 +259,7 @@ const ProductDetails: React.FC = () => {
             {/* Thumbnail Gallery */}
             {images.length > 1 && (
               <div className="flex space-x-3 overflow-x-auto scrollbar-hide">
-                {images.map((image: string, index: number) => (
+                {images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
@@ -256,7 +272,7 @@ const ProductDetails: React.FC = () => {
                   >
                     <img
                       src={image}
-                      alt={`${p.name || 'Product'} ${index + 1}`}
+                      alt={`${product.name} ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -282,35 +298,35 @@ const ProductDetails: React.FC = () => {
             {/* Product Header */}
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
-                {p.category && (
+                {product.category && (
                   <span className="px-3 py-1 text-sm font-medium bg-primary/10 text-primary rounded-full border border-primary/20">
-                    {p.category}
+                    {product.category}
                   </span>
                 )}
-                {p.subcategory && (
+                {product.subcategory && (
                   <span className="px-3 py-1 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-600">
-                    {p.subcategory}
+                    {product.subcategory}
                   </span>
                 )}
               </div>
               
-              {p.brand && (
+              {product.brand && (
                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Brand: <span className="font-semibold text-gray-900 dark:text-white">{p.brand}</span>
+                  Brand: <span className="font-semibold text-gray-900 dark:text-white">{product.brand}</span>
                 </p>
               )}
             </div>
 
             {/* Seller Information */}
-            {p.seller && (
+            {product.seller && (
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-white">
-                      {p.seller.name || 'Seller'}
+                      {product.seller.name || 'Seller'}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Seller ID: {p.seller._id || 'N/A'}
+                      Seller ID: {product.seller._id || 'N/A'}
                     </p>
                   </div>
                   <div className="text-right">
@@ -329,12 +345,12 @@ const ProductDetails: React.FC = () => {
             {/* Ratings */}
             <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
               <div className="flex items-center space-x-1">
-                {renderStars(p.ratings || 0)}
+                {renderStars(product.ratings || 0)}
                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                  ({p.numOfReviews || 0} reviews)
+                  ({product.numOfReviews || 0} reviews)
                 </span>
               </div>
-              {p.ratings && p.ratings >= 4.5 && (
+              {product.ratings && product.ratings >= 4.5 && (
                 <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full flex items-center space-x-1">
                   <CheckIcon className="h-3 w-3" />
                   Top Rated
@@ -346,15 +362,15 @@ const ProductDetails: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {formatPrice(p.price)}
+                  {formatPrice(product.price)}
                 </span>
-                {p.discountPrice && p.discountPrice < p.price && (
+                {product.discountPrice && product.discountPrice < product.price && (
                   <>
                     <span className="text-2xl text-gray-500 line-through">
-                      {formatPrice(p.discountPrice)}
+                      {formatPrice(product.discountPrice)}
                     </span>
                     <span className="px-3 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full border border-red-200">
-                      {Math.round(((p.price - p.discountPrice) / p.price) * 100)}% OFF
+                      {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
                     </span>
                   </>
                 )}
@@ -386,14 +402,14 @@ const ProductDetails: React.FC = () => {
             {/* Stock Status */}
             <div className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
               <div className={`w-4 h-4 rounded-full ${
-                (p.stock || 0) > 0 ? 'bg-green-500' : 'bg-red-500'
+                (product.stock || 0) > 0 ? 'bg-green-500' : 'bg-red-500'
               }`}></div>
               <span className={`text-sm font-medium ${
-                (p.stock || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                (product.stock || 0) > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
               }`}>
-                {(p.stock || 0) > 0 ? `${p.stock} in stock` : 'Out of stock'}
+                {(product.stock || 0) > 0 ? `${product.stock} in stock` : 'Out of stock'}
               </span>
-              {(p.stock || 0) > 0 && (p.stock || 0) <= 10 && (
+              {(product.stock || 0) > 0 && (product.stock || 0) <= 10 && (
                 <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
                   Low Stock
                 </span>
@@ -403,8 +419,8 @@ const ProductDetails: React.FC = () => {
             {/* Action Buttons */}
             <div className="space-y-4">
               <motion.button
-                onClick={() => addToCart({ ...p, quantity })}
-                disabled={(p.stock || 0) === 0}
+                onClick={() => addToCart({ ...product, quantity })}
+                disabled={(product.stock || 0) === 0}
                 className="w-full flex items-center justify-center px-8 py-4 bg-primary text-white font-semibold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -414,7 +430,7 @@ const ProductDetails: React.FC = () => {
               </motion.button>
               
               <motion.button
-                disabled={(p.stock || 0) === 0}
+                disabled={(product.stock || 0) === 0}
                 className="w-full flex items-center justify-center px-8 py-4 bg-accent text-white font-semibold text-lg rounded-xl hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -491,7 +507,7 @@ const ProductDetails: React.FC = () => {
                 </h3>
                 <div className="prose prose-gray dark:prose-invert max-w-none">
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-lg whitespace-pre-wrap">
-                    {p.description || 'No description available for this product.'}
+                    {product.description || 'No description available for this product.'}
                   </p>
                 </div>
               </motion.div>
@@ -509,9 +525,9 @@ const ProductDetails: React.FC = () => {
                   Product Specifications
                 </h3>
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
-                  {p.specifications && p.specifications.length > 0 ? (
+                  {product.specifications && product.specifications.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {p.specifications.map((spec: any, index: number) => (
+                      {product.specifications.map((spec, index) => (
                         <div key={index} className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                           <span className="font-semibold text-gray-700 dark:text-gray-300">{spec.key}</span>
                           <span className="text-gray-600 dark:text-gray-400">{spec.value}</span>
@@ -544,13 +560,13 @@ const ProductDetails: React.FC = () => {
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
                   <div className="text-center">
                     <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                      {(p.ratings || 0).toFixed(1)}
+                      {(product.ratings || 0).toFixed(1)}
                     </div>
                     <div className="flex justify-center mb-2">
-                      {renderStars(p.ratings || 0)}
+                      {renderStars(product.ratings || 0)}
                     </div>
                     <p className="text-gray-600 dark:text-gray-400">
-                      Based on {p.numOfReviews || 0} reviews
+                      Based on {product.numOfReviews || 0} reviews
                     </p>
                   </div>
                 </div>
@@ -596,7 +612,7 @@ const ProductDetails: React.FC = () => {
             
             {/* Desktop Grid */}
             <div className="hidden lg:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct: any) => (
+              {relatedProducts.map((relatedProduct) => (
                 <ProductCard
                   key={relatedProduct._id}
                   product={{
@@ -606,7 +622,8 @@ const ProductDetails: React.FC = () => {
                     price: relatedProduct.price,
                     category: relatedProduct.category,
                     media: relatedProduct.media,
-                    images: relatedProduct.images
+                    images: relatedProduct.images,
+                    slug: relatedProduct.slug
                   }}
                   onAddToCart={addToCart}
                 />
@@ -616,7 +633,7 @@ const ProductDetails: React.FC = () => {
             {/* Mobile Carousel */}
             <div className="lg:hidden">
               <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
-                {relatedProducts.map((relatedProduct: any) => (
+                {relatedProducts.map((relatedProduct) => (
                   <div key={relatedProduct._id} className="flex-shrink-0 w-72">
                     <ProductCard
                       product={{
@@ -626,7 +643,8 @@ const ProductDetails: React.FC = () => {
                         price: relatedProduct.price,
                         category: relatedProduct.category,
                         media: relatedProduct.media,
-                        images: relatedProduct.images
+                        images: relatedProduct.images,
+                        slug: relatedProduct.slug
                       }}
                       onAddToCart={addToCart}
                     />
@@ -641,6 +659,4 @@ const ProductDetails: React.FC = () => {
   );
 };
 
-export default ProductDetails;
-
-
+export default ProductOverview;

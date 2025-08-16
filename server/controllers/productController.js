@@ -747,3 +747,149 @@ exports.getCategories = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get similar products
+// @route   GET /api/products/:id/similar
+// @access  Public
+exports.getSimilarProducts = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return next(new ErrorResponse('Product not found', 404));
+    }
+
+    // Build query for similar products
+    let query = Product.find({
+      _id: { $ne: req.params.id }, // Exclude current product
+      isActive: true,
+      $or: [
+        { category: product.category },
+        { subcategory: product.subcategory },
+        { brand: product.brand }
+      ]
+    });
+
+    // Add price range filter (within 20% of current product price)
+    const priceRange = product.price * 0.2;
+    query = query.find({
+      price: {
+        $gte: product.price - priceRange,
+        $lte: product.price + priceRange
+      }
+    });
+
+    // Get similar products with limit
+    const similarProducts = await query
+      .limit(6)
+      .select('name description price media images category subcategory brand ratings numOfReviews stock')
+      .populate('seller', 'name')
+      .sort('-ratings -views -createdAt');
+
+    res.status(200).json({
+      success: true,
+      count: similarProducts.length,
+      data: similarProducts
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get related products including best sellers and trending items
+// @route   GET /api/products/:id/related
+// @access  Public
+exports.getRelatedProducts = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return next(new ErrorResponse('Product not found', 404));
+    }
+
+    // Get related products based on category and subcategory
+    const relatedByCategory = await Product.find({
+      _id: { $ne: req.params.id },
+      isActive: true,
+      $or: [
+        { category: product.category },
+        { subcategory: product.subcategory }
+      ]
+    })
+    .select('name description price media images category subcategory brand ratings numOfReviews stock views isFeatured')
+    .populate('seller', 'name')
+    .sort('-ratings -views -createdAt')
+    .limit(3);
+
+    // Get best selling products in the same category
+    const bestSellers = await Product.find({
+      _id: { $ne: req.params.id },
+      isActive: true,
+      category: product.category,
+      ratings: { $gte: 4.0 },
+      numOfReviews: { $gte: 5 }
+    })
+    .select('name description price media images category subcategory brand ratings numOfReviews stock views isFeatured')
+    .populate('seller', 'name')
+    .sort('-ratings -numOfReviews -views')
+    .limit(2);
+
+    // Get trending/featured products
+    const trendingProducts = await Product.find({
+      _id: { $ne: req.params.id },
+      isActive: true,
+      $or: [
+        { isFeatured: true },
+        { views: { $gte: 100 } }
+      ]
+    })
+    .select('name description price media images category subcategory brand ratings numOfReviews stock views isFeatured')
+    .populate('seller', 'name')
+    .sort('-views -isFeatured -createdAt')
+    .limit(2);
+
+    // Combine and deduplicate products
+    const allProducts = [...relatedByCategory, ...bestSellers, ...trendingProducts];
+    const uniqueProducts = allProducts.filter((product, index, self) => 
+      index === self.findIndex(p => p._id.toString() === product._id.toString())
+    );
+
+    // Limit to 6 products total
+    const finalProducts = uniqueProducts.slice(0, 6);
+
+    res.status(200).json({
+      success: true,
+      count: finalProducts.length,
+      data: finalProducts
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get product by slug
+// @route   GET /api/products/slug/:slug
+// @access  Public
+exports.getProductBySlug = async (req, res, next) => {
+  try {
+    const product = await Product.findOne({ 
+      slug: req.params.slug,
+      isActive: true 
+    }).populate('seller', 'name email');
+
+    if (!product) {
+      return next(new ErrorResponse('Product not found', 404));
+    }
+
+    // Increment views
+    product.views += 1;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate, Link } from 'react-router-dom';
 
 export interface ProductCardProps {
   product: {
@@ -8,6 +9,7 @@ export interface ProductCardProps {
     description: string;
     price: number;
     category: string;
+    slug?: string;
     media?: Array<{ url: string; type: string }>;
     images?: Array<{ url: string }>;
   };
@@ -15,12 +17,13 @@ export interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-  const { title, description, price, category, media, images } = product;
+  const { title, description, price, category, media, images, _id, slug = '' } = product;
+  const navigate = useNavigate();
 
   // Get the first available image (prioritize media array, fallback to images)
   const getFirstImage = () => {
     if (media && media.length > 0) {
-      const firstImage = media.find(item => item.type === 'image');
+      const firstImage = media.find((item: any) => item.type === 'image');
       if (firstImage && firstImage.url) return firstImage.url;
     }
     
@@ -46,13 +49,30 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     e.currentTarget.nextElementSibling?.classList.add('hidden');
   };
 
+  // Handle card click to navigate to product details
+  const handleCardClick = () => {
+    if (slug) {
+      navigate(`/product/${slug}`); // Cleaner URL without 'slug' prefix
+    } else {
+      navigate(`/product/${_id}`);
+    }
+  };
+
+  // Handle add to cart click (prevent navigation)
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddToCart(product);
+  };
+
   return (
-    <motion.div 
-      className="card overflow-hidden group dark:border-gray-700 dark:bg-gray-900 cursor-pointer"
-      whileHover={{ y: -8, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-    >
+    <Link to={slug ? `/product/${slug}` : `/product/${_id}`} className="block">
+      <motion.div 
+        className="card overflow-hidden group dark:border-gray-700 dark:bg-gray-900 cursor-pointer"
+        whileHover={{ y: -8, scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        onClick={handleCardClick}
+      >
       <div className="relative h-36 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 overflow-hidden">
         {/* Category Badge */}
         <motion.div 
@@ -105,7 +125,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             whileHover={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            Shop Now
+            View Details
           </motion.span>
         </motion.div>
       </div>
@@ -127,7 +147,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </motion.div>
           <motion.button
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-accent text-white font-medium text-sm shadow-lg hover:shadow-xl transition-all duration-300"
-            onClick={() => onAddToCart(product)}
+            onClick={handleAddToCart}
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -136,7 +156,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           </motion.button>
         </div>
       </div>
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 };
 

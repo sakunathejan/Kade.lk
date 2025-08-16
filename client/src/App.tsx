@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Cart from './pages/Cart';
 import ProductDetails from './pages/ProductDetails';
+import ProductOverview from './pages/ProductOverview';
 import Products from './pages/Products';
 import CategoryProducts from './pages/CategoryProducts';
 import CategoryDemo from './pages/CategoryDemo';
@@ -38,6 +39,8 @@ function App() {
             <Route path="/category-demo" element={<CategoryDemo />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/products/:id" element={<ProductDetails />} />
+            <Route path="/product/:id" element={<ProductOverview />} /> {/* Handles both ID and slug */}
+            <Route path="/test-product" element={<div className="text-center py-20 text-2xl">Test Product Route Working!</div>} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/new-arrivals" element={<NewArrivals />} />
             <Route path="/best-sellers" element={<BestSellers />} />
